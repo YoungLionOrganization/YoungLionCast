@@ -1,0 +1,15 @@
+{
+  "name": "younglion-cast",
+  "version": "0.1.0",
+  "private": true,
+  "description": "YoungLion Cast account and OAuth infrastructure",
+  "scripts": {
+    "test": "deno test --allow-env --allow-net --allow-read tests/",
+    "check": "deno check supabase/functions/*/index.ts clients/account.ts scripts/configure-auth.ts",
+    "lint": "deno lint",
+    "fmt:check": "deno fmt --check",
+    "verify": "npm run check && npm run lint && npm run fmt:check && npm test",
+    "test:database": "deno test --allow-env --allow-net --allow-read tests/database_test.ts"
+  },
+  "devDependencies": { "deno": "2.5.6" }
+}
