@@ -35,6 +35,7 @@ function secureUrl(value: string) {
 }
 export function loadOptions(env: Env): Options & { maintenanceSecret: string } {
   const url = secureUrl(required(env, "SUPABASE_URL"));
+  const publicApiUrl = secureUrl(required(env, "CAST_PUBLIC_API_URL"));
   const completeUrl = secureUrl(required(env, "CAST_COMPLETE_URL"));
   const origins = required(env, "CAST_ALLOWED_ORIGINS").split(",").map((s) => secureUrl(s.trim()));
   if (!origins.includes(new URL(completeUrl).origin)) {
@@ -66,7 +67,7 @@ export function loadOptions(env: Env): Options & { maintenanceSecret: string } {
       return new Provider(name, {
         clientId: required(env, `${prefix}_CLIENT_ID`),
         clientSecret: required(env, `${prefix}_CLIENT_SECRET`),
-        redirectUri: `${url}/functions/v1/platform-connections/v1/oauth/callback/${name}`,
+        redirectUri: `${publicApiUrl}/functions/v1/platform-connections/v1/oauth/callback/${name}`,
       });
     },
   };

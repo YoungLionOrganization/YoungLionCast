@@ -58,7 +58,9 @@ export async function requestJson(fetcher: Fetcher, url: string, init: RequestIn
   }
   const body = await boundedJson(response);
   if (!response.ok) {
-    if (body.error === "invalid_grant" || response.status === 401) {
+    const twitchInvalidRefresh = url === "https://id.twitch.tv/oauth2/token" &&
+      response.status === 400 && body.message === "Invalid refresh token";
+    if (body.error === "invalid_grant" || response.status === 401 || twitchInvalidRefresh) {
       throw new AppError("reauth_required", 409);
     }
     throw new AppError(

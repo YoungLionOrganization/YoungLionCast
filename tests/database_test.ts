@@ -35,6 +35,10 @@ Deno.test({
         migrationConnection.release();
       }
       await sql`insert into auth.users(id) values (${ownerA}), (${ownerB}) on conflict do nothing`;
+      const session = "00000000-0000-4000-8000-000000000003",
+        sessionB = "00000000-0000-4000-8000-000000000004";
+      await sql`insert into auth.sessions(id,user_id) values(${session},${ownerA}),(${sessionB},${ownerB}) on conflict do nothing`;
+      await sql`insert into public.yl_profiles(user_id,account_status) values(${ownerA},'active'),(${ownerB},'active') on conflict(user_id) do update set account_status='active'`;
       const call = (
         action: string,
         owner: string | null,
@@ -52,6 +56,8 @@ Deno.test({
         call("start", owner, {
           provider,
           state_hash: crypto.randomUUID(),
+          browser_hash: "browser",
+          session_id: owner === ownerA ? session : sessionB,
           verifier: { opaque: true },
           target,
         });
@@ -60,7 +66,11 @@ Deno.test({
         id: string,
         owner = ownerA,
       ) => {
-        await call("consume", null, { provider: "kick", state_hash: tx.state_hash });
+        await call("consume", null, {
+          provider: "kick",
+          state_hash: tx.state_hash,
+          browser_hash: "browser",
+        });
         await call("save_grant", owner, {
           transaction_id: tx.id,
           grant: { opaque: "ciphertext" },
@@ -75,9 +85,15 @@ Deno.test({
       };
 
       const tx = await start();
-      const session = "00000000-0000-4000-8000-000000000003";
-      await sql`insert into auth.sessions(id,user_id) values(${session},${ownerA}) on conflict do nothing`;
-      await sql`insert into public.yl_profiles(user_id,account_status) values(${ownerA},'active') on conflict(user_id) do update set account_status='active'`;
+      await assert.rejects(
+        () =>
+          call("consume", null, {
+            provider: "kick",
+            state_hash: tx.state_hash,
+            browser_hash: "another-browser",
+          }),
+        /invalid_state/,
+      );
       assert.equal(await call("admit", ownerA, { session_id: session }), true);
       await assert.rejects(() => call("admit", ownerB, { session_id: session }), /session_revoked/);
       await sql`update public.yl_profiles set account_status='onboarding_required' where user_id=${ownerA}`;
@@ -141,6 +157,16 @@ Deno.test({
         expires_at: new Date(Date.now() + 7200000).toISOString(),
       });
       assert.equal(stale, false);
+      assert.equal(
+        await call("checkpoint", null, {
+          credential_id: leased.id,
+          lease: leased.lease,
+          version: leased.version,
+          grant: { stale: true },
+          expires_at: new Date(Date.now() + 7200000).toISOString(),
+        }),
+        false,
+      );
       assert.equal(
         (await call("list", ownerA)).find((x: { id: string }) => x.id === first.id).status,
         "disconnected",

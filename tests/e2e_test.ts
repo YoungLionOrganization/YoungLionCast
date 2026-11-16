@@ -107,7 +107,20 @@ Deno.test({
     const handler = createHandler(options);
     const server = Deno.serve({ hostname: "127.0.0.1", port: 0, onListen: () => {} }, handler);
     const url = `http://127.0.0.1:${server.addr.port}`;
-    const client = new CastAccountClient(url, "publishable", () => Promise.resolve(owner));
+    let browserCookie = "";
+    const client = new CastAccountClient(
+      url,
+      "publishable",
+      () => Promise.resolve(owner),
+      async (input, init) => {
+        const headers = new Headers(init?.headers);
+        if (browserCookie) headers.set("Cookie", browserCookie);
+        const response = await fetch(input, { ...init, headers });
+        const cookie = response.headers.get("Set-Cookie");
+        if (cookie) browserCookie = cookie.split(";")[0];
+        return response;
+      },
+    );
     const clientOther = new CastAccountClient(url, "publishable", () => Promise.resolve(other));
     try {
       const ids: string[] = [];
@@ -123,7 +136,14 @@ Deno.test({
           `${url}/functions/v1/platform-connections/v1/oauth/callback/${provider}?${new URLSearchParams(
             { state, code },
           )}`;
-        const response = await fetch(callback);
+        const victimResponse = await fetch(callback);
+        assert.equal(
+          victimResponse.status,
+          400,
+          "a shared provider URL must not bind a different browser's account",
+        );
+        await victimResponse.body?.cancel();
+        const response = await fetch(callback, { headers: { Cookie: browserCookie } });
         assert.equal(response.status, 200, await response.clone().text());
         assert.equal((await response.text()).includes(`access-${code}`), false);
         const pending = await client.pending(start.transaction_id);

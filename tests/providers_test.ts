@@ -1,6 +1,53 @@
 import assert from "node:assert/strict";
 import { Provider } from "../supabase/functions/_shared/providers.ts";
 
+Deno.test("Twitch terminal invalid-refresh and already-invalid revoke are not retried", async () => {
+  const invalidRefresh = new Provider(
+    "twitch",
+    credentials,
+    () =>
+      Promise.resolve(
+        Response.json({ error: "Bad Request", message: "Invalid refresh token" }, { status: 400 }),
+      ),
+  );
+  await assert.rejects(() => invalidRefresh.refresh("old"), /reauth_required/);
+  const alreadyRevoked = new Provider(
+    "twitch",
+    credentials,
+    () =>
+      Promise.resolve(Response.json({ status: 400, message: "Invalid token" }, { status: 400 })),
+  );
+  await alreadyRevoked.revoke("expired");
+});
+
+Deno.test("omitted refresh scope preserves granted scope while explicit empty scope does not", async () => {
+  const p = new Provider(
+    "kick",
+    credentials,
+    () =>
+      Promise.resolve(
+        Response.json({ access_token: "new", refresh_token: "new-refresh", expires_in: 3600 }),
+      ),
+  );
+  const oldScopes = ["user:read", "channel:read", "streamkey:read"];
+  // An optional second argument is backward compatible for raw-token callers.
+  assert.deepEqual((await p.refresh("old", oldScopes)).scopes, oldScopes);
+  const reduced = new Provider(
+    "kick",
+    credentials,
+    () =>
+      Promise.resolve(
+        Response.json({
+          access_token: "new",
+          refresh_token: "new-refresh",
+          expires_in: 3600,
+          scope: "",
+        }),
+      ),
+  );
+  assert.deepEqual((await reduced.refresh("old", oldScopes)).scopes, []);
+});
+
 const credentials = {
   clientId: "cast-client",
   clientSecret: "server-secret",

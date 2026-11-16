@@ -49,6 +49,7 @@ export class CastAccountClient {
       `${this.supabaseUrl.replace(/\/$/, "")}/functions/v1/platform-connections/v1${path}`,
       {
         method,
+        credentials: "include",
         headers: {
           apikey: this.publishableKey,
           Authorization: `Bearer ${await this.accessToken()}`,

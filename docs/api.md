@@ -28,10 +28,14 @@ Lists include disconnected records to support reconnect/history. No public route
 credentials, ciphertext or stream keys.
 
 OAuth state lasts ten minutes, is stored hashed and is consumed atomically. Pending credentials are
-encrypted and revoked after abandonment. Confirmation requires the same YoungLion owner and never
-merges identities. The ownership registry intentionally retains an account claim after disconnect;
-transfers require a separate verified support flow, outside v1. Confirm is idempotent within the
-transaction lifetime; duplicate callbacks are rejected.
+also bound to a host-only HttpOnly browser-proof cookie set by the authenticated start request, and
+the initiating YoungLion session must still exist. Clients must use a first-party API route with
+credentialed fetch and preserve cookies through the system browser. Sharing the authorization URL
+alone cannot complete a callback in another browser. Pending credentials are encrypted and revoked
+after abandonment. Confirmation requires the same YoungLion owner and never merges identities. The
+ownership registry intentionally retains an account claim after disconnect; transfers require a
+separate verified support flow, outside v1. Confirm is idempotent within the transaction lifetime;
+duplicate callbacks are rejected.
 
 Error shape: `{error:{code:string}}`. Codes include `unauthorized`, `session_revoked`,
 `account_inactive`, `client_not_allowed`, `not_found`, `invalid_state`, `owner_conflict`,

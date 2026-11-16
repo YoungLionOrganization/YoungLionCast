@@ -39,6 +39,8 @@ create table yl_cast_private.yl_cast_transactions (
   owner_id uuid not null references auth.users(id) on delete cascade,
   provider text not null check(provider in ('twitch','kick')),
   state_hash text unique not null,
+  browser_hash text not null,
+  session_id uuid not null,
   verifier jsonb not null,
   target uuid references public.yl_cast_connections(id) on delete cascade,
   account jsonb,
@@ -161,18 +163,21 @@ begin
       window_start=date_trunc('minute',now()) returning hits into current_hits;
     return to_jsonb(current_hits<=least((p_data->>'limit')::integer,1000));
   elsif p_action='start' then
+    if not yl_cast_private.yl_cast_session_exists(p_owner,(p_data->>'session_id')::uuid) then raise exception 'session_revoked'; end if;
     if p_data->>'target' is not null then
       select * into conn from public.yl_cast_connections where id=(p_data->>'target')::uuid and owner_id=p_owner and provider=p_data->>'provider';
       if not found then raise exception 'not_found'; end if;
     end if;
     if (select count(*) from yl_cast_private.yl_cast_transactions where owner_id=p_owner and expires_at>now() and status<>'confirmed')>=10 then raise exception 'rate_limited'; end if;
-    insert into yl_cast_private.yl_cast_transactions(id,owner_id,provider,state_hash,verifier,target)
-    values(coalesce((p_data->>'id')::uuid,gen_random_uuid()),p_owner,p_data->>'provider',p_data->>'state_hash',p_data->'verifier',(p_data->>'target')::uuid)
+    insert into yl_cast_private.yl_cast_transactions(id,owner_id,provider,state_hash,browser_hash,session_id,verifier,target)
+    values(coalesce((p_data->>'id')::uuid,gen_random_uuid()),p_owner,p_data->>'provider',p_data->>'state_hash',p_data->>'browser_hash',(p_data->>'session_id')::uuid,p_data->'verifier',(p_data->>'target')::uuid)
     returning * into tx;
     return to_jsonb(tx);
   elsif p_action='consume' then
     update yl_cast_private.yl_cast_transactions set status='exchanging'
-      where state_hash=p_data->>'state_hash' and provider=p_data->>'provider' and status='started' and expires_at>now()
+      where state_hash=p_data->>'state_hash' and browser_hash=p_data->>'browser_hash' and provider=p_data->>'provider' and status='started' and expires_at>now()
+        and yl_cast_private.yl_cast_session_exists(owner_id,session_id)
+        and yl_cast_private.yl_cast_account_active(owner_id)
       returning * into tx;
     if not found then raise exception 'invalid_state'; end if;
     return to_jsonb(tx);
@@ -255,7 +260,7 @@ begin
       update yl_cast_private.yl_cast_credentials c set lease=gen_random_uuid(),lease_until=now()+interval '2 minutes' from candidates t where c.id=t.id returning c.*
     ) select coalesce(jsonb_agg(to_jsonb(leased)),'[]') into result from leased;
     return result;
-  elsif p_action in ('finish','retry','deny','removed') then
+  elsif p_action in ('checkpoint','finish','retry','deny','removed') then
     select * into cred from yl_cast_private.yl_cast_credentials where id=(p_data->>'credential_id')::uuid;
     if cred.connection_id is not null then
       perform 1 from public.yl_cast_connections where id=cred.connection_id for update;
@@ -263,7 +268,10 @@ begin
     select * into cred from yl_cast_private.yl_cast_credentials where id=(p_data->>'credential_id')::uuid and lease=(p_data->>'lease')::uuid and version=(p_data->>'version')::bigint and lease_until>now() for update;
     if not found then return 'false'; end if;
     -- Metadata is locked before credentials, matching confirm/disconnect lock ordering.
-    if p_action='finish' then
+    if p_action='checkpoint' then
+      if cred.kind not in ('publishing','login') then return 'false'; end if;
+      update yl_cast_private.yl_cast_credentials set grant_data=p_data->'grant',expires_at=(p_data->>'expires_at')::timestamptz where id=cred.id;
+    elsif p_action='finish' then
       if cred.kind not in ('publishing','login') then return 'false'; end if;
       update yl_cast_private.yl_cast_credentials set grant_data=p_data->'grant',expires_at=(p_data->>'expires_at')::timestamptz,due_at=least(now()+interval '45 minutes',(p_data->>'expires_at')::timestamptz-interval '1 minute'),lease=null,lease_until=null,attempts=0,version=version+1 where id=cred.id;
       if cred.connection_id is not null then update public.yl_cast_connections set expires_at=(p_data->>'expires_at')::timestamptz,updated_at=now() where id=cred.connection_id and status='connected'; end if;

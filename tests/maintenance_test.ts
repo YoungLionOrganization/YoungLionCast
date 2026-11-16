@@ -27,6 +27,7 @@ Deno.test("a disconnect during token rotation queues the fresh orphan for revoca
     rpc<T>(action: string, _owner: string | null, data = {}) {
       if (action === "lease") return Promise.resolve([credential] as T);
       if (action === "finish") return Promise.resolve(false as T);
+      if (action === "checkpoint") return Promise.resolve(false as T);
       if (action === "orphan") {
         orphan = data;
         return Promise.resolve(true as T);
@@ -68,6 +69,69 @@ Deno.test("a disconnect during token rotation queues the fresh orphan for revoca
   assert.equal(response.status, 200);
   assert.ok(orphan, "fresh tokens must not be lost when the lease was fenced by disconnect");
   assert.equal(JSON.stringify(orphan).includes("fresh-refresh"), false);
+});
+
+Deno.test("rotated credentials are durably checkpointed before subsequent validation can fail", async () => {
+  const credential = {
+    id: "id",
+    owner_id: "owner",
+    provider: "kick",
+    provider_user_id: "123",
+    purpose: "publishing",
+    kind: "publishing",
+    lease: "lease",
+    version: 1,
+    grant_data: await vault.seal({
+      accessToken: "old",
+      refreshToken: "old-refresh",
+      expiresAt: new Date(0).toISOString(),
+      scopes: ["user:read", "channel:read", "streamkey:read"],
+    }, credentialContext("owner", "kick", "id")),
+  };
+  let persisted: Record<string, unknown> | undefined;
+  const store: Store = {
+    rpc<T>(action: string, _owner: string | null, data = {}) {
+      if (action === "lease") return Promise.resolve([credential] as T);
+      if (action === "checkpoint") {
+        persisted = data;
+        return Promise.resolve(true as T);
+      }
+      if (action === "retry") return Promise.resolve(true as T);
+      throw new Error(`unexpected ${action}`);
+    },
+  };
+  const provider = new Provider(
+    "kick",
+    { clientId: "client", clientSecret: "secret", redirectUri: "https://project.example" },
+    (url) =>
+      Promise.resolve(
+        String(url).includes("/oauth/token")
+          ? Response.json({
+            access_token: "fresh",
+            refresh_token: "rotated-refresh",
+            expires_in: 3600,
+            scope: "user:read channel:read streamkey:read",
+          })
+          : Response.json({ error: "upstream_down" }, { status: 503 }),
+      ),
+  );
+  const handler = createMaintenanceHandler({
+    store,
+    vault,
+    enabled: true,
+    origins: [],
+    completeUrl: "https://account.example",
+    authenticate: () => Promise.reject(),
+    provider: () => provider,
+    maintenanceSecret: "worker",
+  });
+  await handler(
+    new Request("https://project.example/maintenance", {
+      method: "POST",
+      headers: { "X-Cast-Maintenance": "worker" },
+    }),
+  );
+  assert.ok(persisted, "a rotating refresh must be saved before provider validation");
 });
 
 Deno.test("cleanup uses the original login application's credentials", async () => {

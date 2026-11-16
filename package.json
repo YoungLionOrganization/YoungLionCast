@@ -12,5 +12,9 @@
     "test:database": "deno test --allow-env --allow-net --allow-read tests/database_test.ts",
     "test:integration": "node scripts/test-integration.mjs"
   },
-  "devDependencies": { "deno": "2.5.6" }
+  "devDependencies": {
+    "@types/node": "24.2.0",
+    "deno": "2.5.6",
+    "postgres": "3.4.7"
+  }
 }

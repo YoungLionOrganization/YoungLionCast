@@ -54,9 +54,24 @@ Functions accept the explicitly configured `CAST_SUPABASE_*` keys or hosted
 a browser. Upload secrets with the documented `supabase secrets set --env-file .env` command.
 
 `CAST_COMPLETE_URL` must point to the real authenticated connection-confirmation page and its origin
-must appear in `CAST_ALLOWED_ORIGINS`. OAuth callbacks never accept arbitrary redirect URLs.
-`CAST_OAUTH_CLIENT_IDS` allowlists native OAuth client IDs when they are added later; ordinary
-first-party Account sessions do not have a `client_id` claim.
+must appear in `CAST_ALLOWED_ORIGINS`. OAuth callbacks never accept arbitrary redirect URLs. Set
+`CAST_PUBLIC_API_URL` to a first-party HTTPS API origin, such as a reverse proxy under the Account
+origin or a same-site custom API domain. It must route `/functions/v1/platform-connections/*` to
+this function and preserve Cookie/Set-Cookie headers. Use this public origin when constructing
+`CastAccountClient`, and configure the publishing-provider callbacks on the same origin.
+`deploy/Caddyfile.example` provides a narrowly routed reverse-proxy example; provision its DNS/TLS
+and replace the example domain before use. It does not proxy media or other Supabase APIs.
+
+This is a deployment prerequisite: `POST /oauth/start` sets an HttpOnly, Secure, SameSite=Lax,
+host-only cookie with a per-transaction browser proof. The authenticated fetch includes credentials;
+the callback requires that proof and the originating live YoungLion session. The proof is never
+included in the provider URL. A shared authorization URL therefore cannot bind another browser's
+account. A cross-site `*.supabase.co` API may have its cookies blocked by browsers; do not bypass
+the check or weaken SameSite to work around a missing first-party route. Account-web connections are
+supported in this phase; a future native client should open that authenticated web flow in the
+system browser, rather than transfer cookies to an embedded browser. `CAST_OAUTH_CLIENT_IDS`
+allowlists native OAuth client IDs when they are added later; ordinary first-party Account sessions
+do not have a `client_id` claim.
 
 Keep `CAST_ENABLED=false` until deployment, provider configuration and the confirmation page are
 ready. The switch disables new API work, including maintenance; drain cleanup jobs before a planned
@@ -67,9 +82,10 @@ the incident is contained.
 
 Deploy `platform-connections`, `kick-userinfo` and `oauth-maintenance` to staging using the CLI's
 documented functions deployment commands. The committed `verify_jwt=false` settings are deliberate:
-callbacks validate single-use state, Kick UserInfo validates a Kick bearer, maintenance validates
-its own secret, and protected connection routes verify the YoungLion token with Auth plus the
-current database session and profile state. Never expose the RPC to `anon` or `authenticated`.
+callbacks validate single-use state plus browser proof and a live originating session, Kick UserInfo
+validates a Kick bearer, maintenance validates its own secret, and protected connection routes
+verify the YoungLion token with Auth plus the current database session and profile state. Never
+expose the RPC to `anon` or `authenticated`.
 
 ## 5. Login providers
 
@@ -98,10 +114,10 @@ restrictions remains necessary before making the button available on the live Ac
 
 Use **different client IDs** from login:
 
-| Platform | Callback                                                                                 | Permissions                             |
-| -------- | ---------------------------------------------------------------------------------------- | --------------------------------------- |
-| Twitch   | `https://PROJECT.supabase.co/functions/v1/platform-connections/v1/oauth/callback/twitch` | `channel:read:stream_key`               |
-| Kick     | `https://PROJECT.supabase.co/functions/v1/platform-connections/v1/oauth/callback/kick`   | `user:read channel:read streamkey:read` |
+| Platform | Callback                                                                         | Permissions                             |
+| -------- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| Twitch   | `CAST_PUBLIC_API_URL/functions/v1/platform-connections/v1/oauth/callback/twitch` | `channel:read:stream_key`               |
+| Kick     | `CAST_PUBLIC_API_URL/functions/v1/platform-connections/v1/oauth/callback/kick`   | `user:read channel:read streamkey:read` |
 
 Put those IDs/secrets in `CAST_PUBLISH_*`. Login permission is never inferred from a publishing
 connection. For another account, authenticate that account in the system browser; Kick account

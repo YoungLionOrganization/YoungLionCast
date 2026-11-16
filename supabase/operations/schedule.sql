@@ -11,7 +11,7 @@ select cron.schedule(
       'X-Cast-Maintenance',(select decrypted_secret from vault.decrypted_secrets where name='cast_maintenance_secret')
     ),
     body := '{}'::jsonb,
-    timeout_milliseconds := 25000
+    timeout_milliseconds := 60000
   );
   $job$
 );

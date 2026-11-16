@@ -19,8 +19,11 @@ deliverables.
 3. `npm run test:integration` — Docker-based disposable Postgres/PostgREST integration tests.
 4. Follow [setup](docs/setup.md), [API](docs/api.md) and [architecture](docs/architecture.md).
 
+See the [verification record](docs/verification.md) for executed checks and integration limits.
+
 The Account site's source and OAuth developer credentials were not supplied. The backend and
 [typed integration client](clients/account.ts) are prepared; they are **not deployed or integrated
-into the live Account website**. Production OAuth sign-in, email-less onboarding and the platform
+into the live Account website**. Browser linking requires a first-party API route with cookie
+support, as documented in setup. Production OAuth sign-in, email-less onboarding and the platform
 stream-key APIs have not been live-verified. Neither the native desktop nor video streaming is
 implemented in this phase.

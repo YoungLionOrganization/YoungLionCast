@@ -1,6 +1,6 @@
 {
   "compilerOptions": { "strict": true },
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
   "fmt": { "lineWidth": 100, "exclude": ["package-lock.json"] },
   "lint": { "exclude": ["node_modules/"] },
   "imports": {

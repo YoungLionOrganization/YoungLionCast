@@ -1,0 +1,11 @@
+# Example only: provision DNS/TLS and set SUPABASE_PROJECT_REF on your Caddy host.
+# No OAuth credentials belong here. Keep callback query strings out of access logs.
+cast-api.younglion.xyz {
+    @cast path /functions/v1/platform-connections/*
+    handle @cast {
+        reverse_proxy https://{$SUPABASE_PROJECT_REF}.supabase.co {
+            header_up Host {upstream_hostport}
+        }
+    }
+    respond 404
+}

@@ -80,6 +80,11 @@ Deno.test("start returns state only in provider URL and binds owner and encrypte
   assert.notEqual(seen.state_hash, url.searchParams.get("state"));
   assert.equal(JSON.stringify(body).includes("verifier"), false);
   assert.equal(typeof seen.verifier, "object");
+  assert.match(
+    response.headers.get("Set-Cookie")!,
+    /__Host-ylcast_.*; Path=\/; Secure; HttpOnly; SameSite=Lax; Max-Age=600/,
+  );
+  assert.equal(JSON.stringify(body).includes(String(seen.browser_hash)), false);
 });
 
 Deno.test("kick userinfo requires a Kick bearer and never accepts a caller chosen user ID", async () => {

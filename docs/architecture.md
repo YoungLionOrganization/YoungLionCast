@@ -5,11 +5,15 @@ permissions are distinct. An Auth identity trigger and publishing confirmation s
 ownership registry keyed by `(provider, stable provider user ID)`; neither email nor display name
 establishes publishing ownership. This registry is private and has no automatic transfer operation.
 
-Publishing OAuth progresses through `started → exchanging → pending → confirmed`, or `failed`.
-Credentials are retained as encrypted pending work immediately after token exchange and before
-fetching a profile. Only authenticated owner confirmation exposes connection metadata. Every
-ciphertext is bound to its immutable credential UUID, owner and provider with AES-GCM additional
-authenticated data. Separate key IDs permit rotation.
+Publishing OAuth progresses through `started → exchanging → pending → confirmed`, or `failed`. The
+start response sets an HttpOnly host-only browser proof outside the authorization URL. A callback
+requires that proof, its matching hash and the originating live session before consuming state or
+exchanging a provider code. The public API must be first-party/same-site for browser cookie support;
+native consumers will open the Account-web linking flow. Credentials are retained as encrypted
+pending work immediately after token exchange and before fetching a profile. Only authenticated
+owner confirmation exposes connection metadata. Every ciphertext is bound to its immutable
+credential UUID, owner and provider with AES-GCM additional authenticated data. Separate key IDs
+permit rotation.
 
 The service RPC is invoker-security and executable only by `service_role`. Helpers that read Auth
 sessions or coordinate Auth identity creation have fixed empty search paths, live in an unexposed
@@ -17,7 +21,9 @@ schema and cannot be called by public users. Only metadata is exposed, read-only
 
 Credential maintenance uses database leases, conditional versions and consistent metadata-before-
 credential lock ordering. Disconnect invalidates a lease immediately. A token rotated by an
-already-running worker cannot reactivate the connection; its new token is queued separately for
+already-running worker is checkpointed durably before subsequent provider validation or final
+metadata writes; a temporary validation failure therefore retries with the new refresh token. It
+cannot reactivate the connection after disconnect; its new token is queued separately for
 revocation. Failed network cleanup retains encrypted work with backoff. No database lock is held
 while calling Twitch/Kick. See setup for backlog monitoring and integration limitations.
 

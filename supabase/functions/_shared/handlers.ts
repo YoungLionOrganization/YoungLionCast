@@ -65,7 +65,11 @@ export function createHandler(options: Options) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("Origin");
     const headers: Record<string, string> = origin && options.origins.includes(origin)
-      ? { "Access-Control-Allow-Origin": origin, "Vary": "Origin" }
+      ? {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Vary": "Origin",
+      }
       : {};
     try {
       if (!options.enabled) throw new AppError("feature_disabled", 503);
@@ -89,7 +93,7 @@ export function createHandler(options: Options) {
       );
       const callback = /^\/v1\/oauth\/callback\/(kick|twitch)$/.exec(path);
       if (callback && request.method === "GET") {
-        return await callbackRequest(options, url, platform(callback[1]));
+        return await callbackRequest(options, request, url, platform(callback[1]));
       }
       const user = await principal(
         options,
@@ -99,7 +103,8 @@ export function createHandler(options: Options) {
       await rate(options.store, `user:${user.id}`, 60);
       if (path === "/v1/oauth/start" && request.method === "POST") {
         const data = await body(request, ["provider"]);
-        return json(await start(options, user.id, platform(data.provider)), 200, headers);
+        const started = await start(options, user.id, platform(data.provider), user.sessionId);
+        return json(started.body, 200, { ...headers, "Set-Cookie": started.cookie });
       }
       if (path === "/v1/oauth/pending" && request.method === "GET") {
         return json(
@@ -140,7 +145,8 @@ export function createHandler(options: Options) {
           const connection = await options.store.rpc<Connection>("get", user.id, {
             connection_id: id,
           });
-          return json(await start(options, user.id, connection.provider, id), 200, headers);
+          const started = await start(options, user.id, connection.provider, user.sessionId, id);
+          return json(started.body, 200, { ...headers, "Set-Cookie": started.cookie });
         }
         if (!target[2] && request.method === "DELETE") {
           await options.store.rpc("disconnect", user.id, { connection_id: id });
@@ -185,35 +191,60 @@ export function createHandler(options: Options) {
   };
 }
 
-async function start(options: Options, owner: string, name: Platform, target?: string) {
+async function start(
+  options: Options,
+  owner: string,
+  name: Platform,
+  sessionId: string,
+  target?: string,
+) {
   const provider = options.provider(name);
   const id = crypto.randomUUID(), state = randomToken(), verifier = randomToken();
+  const browserProof = randomToken(), stateHash = await digest(state);
   const transaction = await options.store.rpc<Transaction>("start", owner, {
     id,
     provider: name,
-    state_hash: await digest(state),
+    state_hash: stateHash,
+    browser_hash: await digest(browserProof),
+    session_id: sessionId,
     verifier: await options.vault.seal({ verifier }, `state:${owner}:${name}:${id}`),
     ...(target ? { target } : {}),
   });
   return {
-    transaction_id: transaction.id,
-    expires_at: transaction.expires_at,
-    authorization_url: provider.authorizationUrl(
-      state,
-      name === "kick" ? await challenge(verifier) : undefined,
-    ),
+    cookie: `__Host-ylcast_${
+      stateHash.slice(0, 32)
+    }=${browserProof}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600`,
+    body: {
+      transaction_id: transaction.id,
+      expires_at: transaction.expires_at,
+      authorization_url: provider.authorizationUrl(
+        state,
+        name === "kick" ? await challenge(verifier) : undefined,
+      ),
+    },
   };
 }
 
-async function callbackRequest(options: Options, url: URL, name: Platform): Promise<Response> {
+async function callbackRequest(
+  options: Options,
+  request: Request,
+  url: URL,
+  name: Platform,
+): Promise<Response> {
   const state = url.searchParams.get("state"), code = url.searchParams.get("code");
   if (
     !state || !/^[A-Za-z0-9_-]{43}$/.test(state) || (!code && !url.searchParams.has("error")) ||
     (code && code.length > 2048)
   ) throw new AppError("invalid_state");
+  const stateHash = await digest(state), cookieName = `__Host-ylcast_${stateHash.slice(0, 32)}`;
+  const cookie = (request.headers.get("Cookie") ?? "").split(";").map((s) => s.trim()).find((s) =>
+    s.startsWith(`${cookieName}=`)
+  )?.slice(cookieName.length + 1);
+  if (!cookie || !/^[A-Za-z0-9_-]{43}$/.test(cookie)) throw new AppError("invalid_state");
   const tx = await options.store.rpc<Transaction>("consume", null, {
     provider: name,
-    state_hash: await digest(state),
+    state_hash: stateHash,
+    browser_hash: await digest(cookie),
   });
   const provider = options.provider(name);
   let grant: Grant | undefined;
@@ -246,6 +277,7 @@ async function callbackRequest(options: Options, url: URL, name: Platform): Prom
         headers: {
           ...safeHeaders,
           "Content-Type": "text/html; charset=utf-8",
+          "Set-Cookie": `${cookieName}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0`,
           "Content-Security-Policy":
             "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
         },
@@ -255,9 +287,46 @@ async function callbackRequest(options: Options, url: URL, name: Platform): Prom
     await options.store.rpc("fail_transaction", tx.owner_id, { transaction_id: tx.id }).catch(
       () => {},
     );
-    if (grant && !persisted) await provider.revoke(grant.accessToken).catch(() => {});
+    if (grant && !persisted) {
+      try {
+        await queueOrphan(options, tx.owner_id, name, "publishing", grant);
+      } catch {
+        // Both independent revocations are attempted even when one fails. A total database
+        // and upstream outage cannot offer an exactly-once guarantee; require reauthorization.
+        await revokePair(provider, grant);
+      }
+    }
     throw error;
   }
+}
+
+async function revokePair(provider: Provider, grant: Grant) {
+  const results = await Promise.allSettled([
+    provider.revoke(grant.accessToken),
+    ...(provider.name === "kick" && grant.refreshToken
+      ? [provider.revoke(grant.refreshToken, "refresh_token")]
+      : []),
+  ]);
+  if (results.some((result) => result.status === "rejected")) {
+    throw new AppError("provider_unavailable", 503);
+  }
+}
+
+async function queueOrphan(
+  options: Options,
+  owner: string,
+  name: Platform,
+  purpose: "login" | "publishing",
+  grant: Grant,
+) {
+  const id = crypto.randomUUID();
+  await options.store.rpc("orphan", owner, {
+    id,
+    provider: name,
+    purpose,
+    grant: await options.vault.seal(grant, credentialContext(owner, name, id)),
+    expires_at: grant.expiresAt,
+  });
 }
 
 export function createKickUserInfoHandler(options: Options) {
@@ -307,6 +376,8 @@ async function maintain(options: Options, credential: Credential) {
     lease: credential.lease,
     version: credential.version,
   };
+  let rotated: Grant | undefined;
+  let rotationSaved = false;
   try {
     const provider = options.provider(credential.provider, credential.purpose);
     let grant = await options.vault.open<Grant>(
@@ -314,15 +385,32 @@ async function maintain(options: Options, credential: Credential) {
       credentialContext(credential.owner_id, credential.provider, credential.id),
     );
     if (credential.kind === "cleanup") {
-      await provider.revoke(grant.accessToken);
-      if (credential.provider === "kick" && grant.refreshToken) {
-        await provider.revoke(grant.refreshToken, "refresh_token");
-      }
+      await revokePair(provider, grant);
       return options.store.rpc<boolean>("removed", null, data);
     }
     if (Date.parse(grant.expiresAt) <= Date.now() + 300000) {
       if (!grant.refreshToken) throw new AppError("reauth_required", 409);
-      grant = await provider.refresh(grant.refreshToken);
+      grant = await provider.refresh(grant.refreshToken, grant.scopes);
+      rotated = grant;
+      const checkpoint = await options.store.rpc<boolean>("checkpoint", null, {
+        ...data,
+        grant: await options.vault.seal(
+          grant,
+          credentialContext(credential.owner_id, credential.provider, credential.id),
+        ),
+        expires_at: grant.expiresAt,
+      });
+      if (!checkpoint) {
+        await queueOrphan(
+          options,
+          credential.owner_id,
+          credential.provider,
+          credential.purpose,
+          grant,
+        );
+        return false;
+      }
+      rotationSaved = true;
     }
     await provider.validate(grant.accessToken, credential.provider_user_id);
     if (credential.kind === "publishing" && !provider.hasPublishingScopes(grant)) {
@@ -337,20 +425,31 @@ async function maintain(options: Options, credential: Credential) {
       expires_at: grant.expiresAt,
     });
     if (!applied) {
-      const id = crypto.randomUUID();
-      await options.store.rpc("orphan", credential.owner_id, {
-        id,
-        provider: credential.provider,
-        purpose: credential.purpose,
-        grant: await options.vault.seal(
-          grant,
-          credentialContext(credential.owner_id, credential.provider, id),
-        ),
-        expires_at: grant.expiresAt,
-      });
+      await queueOrphan(
+        options,
+        credential.owner_id,
+        credential.provider,
+        credential.purpose,
+        grant,
+      );
     }
     return applied;
   } catch (error) {
+    if (rotated && !rotationSaved) {
+      try {
+        await queueOrphan(
+          options,
+          credential.owner_id,
+          credential.provider,
+          credential.purpose,
+          rotated,
+        );
+      } catch {
+        await revokePair(options.provider(credential.provider, credential.purpose), rotated);
+      }
+      await options.store.rpc("deny", null, data);
+      return false;
+    }
     const denied = error instanceof AppError &&
       ["reauth_required", "provider_identity"].includes(error.code);
     await options.store.rpc(denied ? "deny" : "retry", null, data);

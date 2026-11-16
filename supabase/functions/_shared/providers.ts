@@ -1,4 +1,4 @@
-import { AppError, type Fetcher, requestJson, text } from "./http.ts";
+import { AppError, boundedJson, type Fetcher, requestJson, text } from "./http.ts";
 
 export type Platform = "twitch" | "kick";
 export interface Credentials {
@@ -64,7 +64,11 @@ export class Provider {
     url.search = new URLSearchParams(params).toString();
     return url.toString();
   }
-  private async token(params: Record<string, string>, previous?: string): Promise<Grant> {
+  private async token(
+    params: Record<string, string>,
+    previous?: string,
+    previousScopes: string[] = [],
+  ): Promise<Grant> {
     const data = await requestJson(this.fetcher, endpoints[this.name].token, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -82,6 +86,8 @@ export class Provider {
       ? data.scope
       : typeof data.scope === "string"
       ? data.scope.split(/\s+/).filter(Boolean)
+      : data.scope === undefined
+      ? [...previousScopes]
       : [];
     if (scopes.some((s) => typeof s !== "string" || s.length > 200)) {
       throw new AppError("provider_response", 502);
@@ -101,8 +107,8 @@ export class Provider {
       ...(verifier ? { code_verifier: verifier } : {}),
     });
   }
-  refresh(token: string) {
-    return this.token({ grant_type: "refresh_token", refresh_token: token }, token);
+  refresh(token: string, previousScopes: string[] = []) {
+    return this.token({ grant_type: "refresh_token", refresh_token: token }, token, previousScopes);
   }
   async account(accessToken: string): Promise<Account> {
     const data = await requestJson(this.fetcher, endpoints[this.name].users, {
@@ -175,6 +181,11 @@ export class Provider {
         signal: AbortSignal.timeout(8000),
       });
     } catch {
+      throw new AppError("provider_unavailable", 503);
+    }
+    if (this.name === "twitch" && response.status === 400) {
+      const data = await boundedJson(response);
+      if (data.message === "Invalid token") return;
       throw new AppError("provider_unavailable", 503);
     }
     await response.body?.cancel();
