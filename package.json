@@ -9,7 +9,8 @@
     "lint": "deno lint",
     "fmt:check": "deno fmt --check",
     "verify": "npm run check && npm run lint && npm run fmt:check && npm test",
-    "test:database": "deno test --allow-env --allow-net --allow-read tests/database_test.ts"
+    "test:database": "deno test --allow-env --allow-net --allow-read tests/database_test.ts",
+    "test:integration": "node scripts/test-integration.mjs"
   },
   "devDependencies": { "deno": "2.5.6" }
 }

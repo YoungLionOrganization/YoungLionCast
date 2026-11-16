@@ -121,6 +121,22 @@ end $$;
 
 -- PostgREST entry point: SECURITY INVOKER, executable only by the backend role.
 -- All credentials remain in an unexposed schema; p_owner comes only from a verified session.
+-- Do not grant service_role broad access to Auth's private tables.
+create function yl_cast_private.yl_cast_session_exists(p_owner uuid,p_session uuid)
+returns boolean language sql stable security definer set search_path='' as $$
+  select exists(select 1 from auth.sessions where id=p_session and user_id=p_owner)
+$$;
+create function yl_cast_private.yl_cast_account_active(p_owner uuid)
+returns boolean language plpgsql stable security definer set search_path='' as $$
+declare active boolean;
+begin
+  if to_regclass('public.yl_profiles') is null then return false; end if;
+  execute 'select exists(select 1 from public.yl_profiles where user_id=$1 and account_status=''active'')' into active using p_owner;
+  return active;
+end $$;
+revoke all on function yl_cast_private.yl_cast_session_exists(uuid,uuid),yl_cast_private.yl_cast_account_active(uuid) from public,anon,authenticated;
+grant execute on function yl_cast_private.yl_cast_session_exists(uuid,uuid),yl_cast_private.yl_cast_account_active(uuid) to service_role;
+
 create function public.yl_cast_rpc(p_action text,p_owner uuid,p_data jsonb default '{}')
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
@@ -132,13 +148,11 @@ declare
   current_hits integer;
   cid uuid;
 begin
-  if p_action='admit' then
-    if not exists(select 1 from auth.sessions where id=(p_data->>'session_id')::uuid and user_id=p_owner)
+  if p_action in ('admit','admit_session') then
+    if not yl_cast_private.yl_cast_session_exists(p_owner,(p_data->>'session_id')::uuid)
       or exists(select 1 from yl_cast_private.yl_cast_denied_sessions where session_id=(p_data->>'session_id')::uuid)
       then raise exception 'session_revoked'; end if;
-    if to_regclass('public.yl_profiles') is null then raise exception 'account_unavailable'; end if;
-    execute 'select exists(select 1 from public.yl_profiles where user_id=$1 and account_status=''active'')' into result using p_owner;
-    if result<>'true'::jsonb then raise exception 'account_inactive'; end if;
+    if p_action='admit' and not yl_cast_private.yl_cast_account_active(p_owner) then raise exception 'account_inactive'; end if;
     return 'true';
   elsif p_action='rate' then
     insert into yl_cast_private.yl_cast_rate_limits values(p_data->>'bucket',date_trunc('minute',now()),1)
@@ -232,7 +246,7 @@ begin
   elsif p_action='lease' then
     -- Expired pending grants and obsolete login sessions become durable revocation work.
     update yl_cast_private.yl_cast_credentials c set kind='cleanup',due_at=now(),version=version+1,lease=null,lease_until=null
-      where (kind='pending' and due_at<=now()) or (kind='login' and not exists(select 1 from auth.sessions s where s.id=c.id and s.user_id=c.owner_id));
+      where (kind='pending' and due_at<=now()) or (kind='login' and not yl_cast_private.yl_cast_session_exists(c.owner_id,c.id));
     delete from yl_cast_private.yl_cast_transactions t where expires_at<now()-interval '1 day' and not exists(select 1 from yl_cast_private.yl_cast_credentials c where c.id=t.id);
     delete from yl_cast_private.yl_cast_rate_limits where window_start<now()-interval '1 hour';
     with candidates as (

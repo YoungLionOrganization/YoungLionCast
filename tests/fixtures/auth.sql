@@ -10,6 +10,7 @@ do $$ begin
 end $$;
 create table if not exists auth.users(id uuid primary key);
 create table if not exists auth.sessions(id uuid primary key,user_id uuid references auth.users(id));
+create table if not exists public.yl_profiles(user_id uuid primary key references auth.users(id),account_status text not null);
 create table if not exists auth.identities(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),provider text not null,provider_id text not null);
 truncate auth.identities;
 create or replace function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;

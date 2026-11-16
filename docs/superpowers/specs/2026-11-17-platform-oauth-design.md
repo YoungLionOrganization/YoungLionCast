@@ -8,10 +8,11 @@ and team sharing are excluded from this delivery.
 Login uses Twitch's built-in provider and custom:kick with a bearer-authenticated UserInfo adapter.
 Publishing OAuth uses separate developer applications, explicit account confirmation, one-use
 10-minute state, and Kick S256 PKCE. Tokens are encrypted outside exposed schemas. Ownership is
-atomic across login identities and publishing connections. Unverified emails never establish identity.
+atomic across login identities and publishing connections. Unverified emails never establish
+identity.
 
-Refresh and revocation are durable and bounded; Twitch grants are validated initially and hourly.
-No video travels through Edge Functions or Postgres. No unmeasured OBS performance claims.
+Refresh and revocation are durable and bounded; Twitch grants are validated initially and hourly. No
+video travels through Edge Functions or Postgres. No unmeasured OBS performance claims.
 
 Account frontend source and provider credentials are absent. Deliver a standalone backend and typed
 integration client, plus reproducible configuration/deployment instructions. Do not replace the

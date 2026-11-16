@@ -1,5 +1,7 @@
 export class AppError extends Error {
-  constructor(public code: string, public status = 400) { super(code); }
+  constructor(public code: string, public status = 400) {
+    super(code);
+  }
 }
 
 export type Fetcher = (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -19,40 +21,64 @@ export async function boundedValue(response: Response, limit = 65536): Promise<u
     }
     const bytes = new Uint8Array(total);
     let offset = 0;
-    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
     return JSON.parse(new TextDecoder().decode(bytes));
   } catch (e) {
     if (e instanceof AppError) throw e;
     throw new AppError("provider_response", 502);
-  } finally { await reader.cancel().catch(() => {}); }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
 }
 
-export async function boundedJson(response: Response, limit = 65536): Promise<Record<string, unknown>> {
+export async function boundedJson(
+  response: Response,
+  limit = 65536,
+): Promise<Record<string, unknown>> {
   const body = await boundedValue(response, limit);
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new AppError("provider_response", 502);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new AppError("provider_response", 502);
+  }
   return body as Record<string, unknown>;
 }
 
 export async function requestJson(fetcher: Fetcher, url: string, init: RequestInit = {}) {
   let response: Response;
   try {
-    response = await fetcher(url, { ...init, redirect: "error", signal: AbortSignal.timeout(8000) });
-  } catch { throw new AppError("provider_unavailable", 503); }
+    response = await fetcher(url, {
+      ...init,
+      redirect: "error",
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw new AppError("provider_unavailable", 503);
+  }
   const body = await boundedJson(response);
   if (!response.ok) {
-    if (body.error === "invalid_grant" || response.status === 401) throw new AppError("reauth_required", 409);
-    throw new AppError(response.status === 429 ? "provider_rate_limited" : "provider_unavailable", 503);
+    if (body.error === "invalid_grant" || response.status === 401) {
+      throw new AppError("reauth_required", 409);
+    }
+    throw new AppError(
+      response.status === 429 ? "provider_rate_limited" : "provider_unavailable",
+      503,
+    );
   }
   return body;
 }
 
 export function text(value: unknown, max = 8192): string {
-  if (typeof value !== "string" || !value.length || value.length > max) throw new AppError("provider_response", 502);
+  if (typeof value !== "string" || !value.length || value.length > max) {
+    throw new AppError("provider_response", 502);
+  }
   return value;
 }
 
 export const safeHeaders = {
-  "Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
+  "Cache-Control": "no-store",
+  "Referrer-Policy": "no-referrer",
   "X-Content-Type-Options": "nosniff",
 };
 

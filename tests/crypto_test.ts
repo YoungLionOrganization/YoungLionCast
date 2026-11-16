@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
-import { challenge, digest, randomToken, TokenVault } from "../supabase/functions/_shared/crypto.ts";
+import {
+  challenge,
+  digest,
+  randomToken,
+  TokenVault,
+} from "../supabase/functions/_shared/crypto.ts";
 
 Deno.test("PKCE matches the RFC 7636 S256 vector", async () => {
-  assert.equal(await challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"), "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
-  assert.equal(await digest("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  assert.equal(
+    await challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+    "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+  );
+  assert.equal(
+    await digest("abc"),
+    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+  );
   assert.match(randomToken(), /^[A-Za-z0-9_-]{43}$/);
 });
 
@@ -15,7 +26,9 @@ Deno.test("encrypted grants cannot be moved between owners, purposes or provider
   for (const context of ["owner:2:kick:grant", "owner:1:twitch:grant", "owner:1:kick:state"]) {
     await assert.rejects(() => vault.open(sealed, context), /vault_invalid/);
   }
-  await assert.rejects(() => vault.open({ ...sealed, ciphertext: sealed.ciphertext.slice(1) }, "owner:1:kick:grant"));
+  await assert.rejects(() =>
+    vault.open({ ...sealed, ciphertext: sealed.ciphertext.slice(1) }, "owner:1:kick:grant")
+  );
 });
 
 Deno.test("key rotation retains old decrypt keys but encrypts with the current key", async () => {
