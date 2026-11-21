@@ -16,6 +16,7 @@ jobs:
     outputs:
       exists: ${{ steps.release.outputs.exists }}
       version: ${{ steps.release.outputs.version }}
+      platforms: ${{ steps.release.outputs.platforms }}
       tag: ${{ steps.release.outputs.tag }}
       release_notes_path: ${{ steps.release.outputs.release_notes_path }}
       title: ${{ steps.release.outputs.title }}
@@ -52,6 +53,7 @@ jobs:
     uses: ./.github/workflows/native.yml
     with:
       version: ${{ needs.preflight.outputs.version }}
+      platforms: ${{ needs.preflight.outputs.platforms }}
   publish:
     needs: [preflight, verify, native]
     runs-on: ubuntu-24.04
@@ -70,14 +72,15 @@ jobs:
       - name: Verify bundles and archive the matching source
         env:
           CAST_TAG: ${{ needs.preflight.outputs.tag }}
+          CAST_PLATFORMS: ${{ needs.preflight.outputs.platforms }}
         run: |
           set -euo pipefail
-          for platform in linux-x64 macos-arm64 macos-x64 windows-x64; do
+          while IFS= read -r platform; do
             extension=tar.gz
             [[ "$platform" != windows-x64 ]] || extension=zip
             asset="YoungLionCast-$CAST_TAG-$platform.$extension"
             (cd release-assets && sha256sum --check "$asset.sha256")
-          done
+          done < <(jq -r '.[]' <<< "$CAST_PLATFORMS")
           source="YoungLionCast-$CAST_TAG-source.tar.gz"
           git archive --format=tar.gz --prefix="YoungLionCast-$CAST_TAG/" -o "release-assets/$source" "$GITHUB_SHA"
           (cd release-assets && sha256sum "$source" > "$source.sha256")

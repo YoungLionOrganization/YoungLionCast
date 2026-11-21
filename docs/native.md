@@ -5,7 +5,10 @@ The Qt 6.12.0 Widgets app uses C++20 and libobs 33.0.1. Docking and layout resto
 the Turkish Qt catalog. The GPU preview uses the active scene, and the editor releases sources in
 inactive scenes. The preview draws directly to the native display surface.
 
-## Build and run
+For release downloads, scene editing and the two-receiver demo, see the
+[quick start](quick-start.md).
+
+## Build from source
 
 Install Python 3.12+, CMake 3.28+, the Qt **6.12.0** desktop SDK with Network Authorization, and a
 native toolchain. Linux requires Ninja and the development packages listed in the desktop CI
@@ -36,21 +39,12 @@ Use
 with the Qt and OBS runtime paths set for the test binaries. This exercises libobs XShm and
 composition through Mesa in a virtual X11 session. Sign, package, and exercise the capture matrix on
 physical desktops before shipping. Windows game capture, macOS ScreenCaptureKit, and Wayland portal
-behavior need separate hardware and desktop tests. The build does not ship live outputs.
+behavior need separate hardware and desktop tests. The publishing preview supports local RTMP.
 
 ## Try local RTMP
 
-Start one or more listeners on localhost, then open the **Yerel yayın** tab and enter one URL per
-line. For example, run the following in two terminals with different ports or use two RTMP servers.
-
-```sh
-ffmpeg -listen 1 -i rtmp://127.0.0.1:1935/live/cast -c:v copy -f flv session.flv
-```
-
-Enter `rtmp://127.0.0.1:1935/live/cast` and the other listener's URL. Click **Yerel yayını başlat**.
-Use one to four targets. Every output shares one video-only H.264 encoder and has a separate state,
-retry schedule and packet queue. The demo accepts numeric IPv4 loopback targets and keeps the URLs
-in memory. Kick and Twitch keys and audio will be integrated in a later milestone.
+Follow the [two-receiver walkthrough](quick-start.md#send-video-to-two-local-receivers) to try
+streaming without platform credentials.
 
 Run `CAST_TEST_RTMP=1` alongside `CAST_TEST_GPU=1` under Xvfb to test two real FFmpeg listeners,
 lose one connection and check the remaining FLV file with `ffprobe`.
@@ -74,8 +68,7 @@ lose one connection and check the remaining FLV file with `ffprobe`.
    sign-in. After the user signs in and explicitly chooses to continue, call
    `CastAccountClient.authorizeNative(requestId, ticket)` using the browser session and
    `credentials: "include"`, then navigate to `authorization_url`. Use
-   `Referrer-Policy:
-   no-referrer` and avoid recording these query values. The provider callback
+   `Referrer-Policy: no-referrer` and avoid recording these query values. The provider callback
    tells the user to return to Cast, where they confirm the returned channel. Reconnect uses the
    same broker.
 

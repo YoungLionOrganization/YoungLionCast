@@ -22,6 +22,14 @@ def metadata():
         data["update_track"] == "preview"
     ):
         raise ValueError("Release track and prerelease flag disagree")
+    supported = {row["asset"] for row in json.loads((ROOT / "cmake/native-builds.json").read_text())}
+    platforms = data["platforms"]
+    if (not isinstance(platforms, list) or not platforms or
+            any(not isinstance(platform, str) or platform not in supported for platform in platforms) or
+            len(set(platforms)) != len(platforms)):
+        raise ValueError("Release platforms must be a nonempty list of distinct build targets")
+    if not data["prerelease"] and set(platforms) != supported:
+        raise ValueError("Stable releases require every native build target")
     cmake = (ROOT / "CMakeLists.txt").read_text()
     match = re.search(r"^project\(YoungLionCast VERSION (\S+)", cmake, re.MULTILINE)
     package = json.loads((ROOT / "package.json").read_text())
@@ -33,4 +41,5 @@ def metadata():
 
 if __name__ == "__main__":
     for key, value in metadata().items():
-        print(f"{key}={str(value).lower() if isinstance(value, bool) else value}")
+        output = json.dumps(value, separators=(",", ":")) if isinstance(value, (list, bool)) else value
+        print(f"{key}={output}")

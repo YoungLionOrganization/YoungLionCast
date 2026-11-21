@@ -24,29 +24,35 @@ on:
       version:
         type: string
         default: ""
+      platforms:
+        type: string
+        default: "[]"
 permissions:
   contents: read
 jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      builds: ${{ steps.select.outputs.builds }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: select
+        env:
+          CAST_PLATFORMS: ${{ inputs.platforms || '[]' }}
+        run: |
+          set -euo pipefail
+          builds=$(jq -ce --argjson wanted "$CAST_PLATFORMS" '
+            [.[] | .asset as $name | select(($wanted | length) == 0 or ($wanted | index($name)) != null)]
+            | if length > 0 then {include: .} else error("No build targets selected") end
+          ' cmake/native-builds.json)
+          echo "builds=$builds" >> "$GITHUB_OUTPUT"
   native:
+    needs: matrix
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-26.04
-            qt-host: linux
-            asset: linux-x64
-          - os: windows-2025-vs2026
-            qt-host: windows
-            asset: windows-x64
-            qt-arch: win64_msvc2022_64
-          - os: macos-15
-            qt-host: mac
-            asset: macos-arm64
-            qt-arch: clang_64
-          - os: macos-15-intel
-            qt-host: mac
-            asset: macos-x64
-            qt-arch: clang_64
+      matrix: ${{ fromJSON(needs.matrix.outputs.builds) }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:

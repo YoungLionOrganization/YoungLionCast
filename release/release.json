@@ -5,5 +5,8 @@
   "target_branch": "main",
   "release_notes_path": "release/notes/v0.3.0.md",
   "prerelease": true,
-  "update_track": "preview"
+  "update_track": "preview",
+  "platforms": [
+    "linux-x64"
+  ]
 }
