@@ -84,6 +84,127 @@ Deno.test({
         return call("confirm", owner, { transaction_id: tx.id });
       };
 
+      // Native tickets are browser-facing; the independent proof and native session poll.
+      const browserSession = crypto.randomUUID();
+      await sql`insert into auth.sessions(id,user_id) values(${browserSession},${ownerA})`;
+      const native = await call("native_start", ownerA, {
+        provider: "kick",
+        proof_hash: "a".repeat(64),
+        ticket_hash: "b".repeat(64),
+        session_id: session,
+      });
+      await assert.rejects(() =>
+        call("native_claim", ownerB, {
+          request_id: native.request_id,
+          ticket_hash: "b".repeat(64),
+          session_id: sessionB,
+        }), /not_found/);
+      await assert.rejects(() =>
+        call("native_claim", ownerA, {
+          request_id: native.request_id,
+          ticket_hash: "c".repeat(64),
+          session_id: browserSession,
+        }), /invalid_state/);
+      await call("native_claim", ownerA, {
+        request_id: native.request_id,
+        ticket_hash: "b".repeat(64),
+        session_id: browserSession,
+      });
+      const binding = {
+        request_id: native.request_id,
+        ticket_hash: "b".repeat(64),
+        provider: "kick",
+        state_hash: crypto.randomUUID(),
+        browser_hash: "native-browser",
+        session_id: browserSession,
+        verifier: { opaque: true },
+      };
+      const nativeTx = await call("native_bind", ownerA, binding);
+      await assert.rejects(() => call("native_bind", ownerA, binding), /invalid_state/);
+      await assert.rejects(() =>
+        call("native_status", ownerA, {
+          request_id: native.request_id,
+          proof_hash: "b".repeat(64),
+          session_id: session,
+        }), /invalid_state/);
+      await assert.rejects(() =>
+        call("native_status", ownerA, {
+          request_id: native.request_id,
+          proof_hash: "a".repeat(64),
+          session_id: browserSession,
+        }), /invalid_state/);
+      assert.equal(
+        (await call("native_status", ownerA, {
+          request_id: native.request_id,
+          proof_hash: "a".repeat(64),
+          session_id: session,
+        })).status,
+        "waiting",
+      );
+      await call("native_cancel", ownerA, {
+        request_id: native.request_id,
+        proof_hash: "a".repeat(64),
+        session_id: session,
+      });
+      assert.equal(
+        (await call("native_status", ownerA, {
+          request_id: native.request_id,
+          proof_hash: "a".repeat(64),
+          session_id: session,
+        })).status,
+        "cancelled",
+      );
+      await assert.rejects(
+        () => call("confirm", ownerA, { transaction_id: nativeTx.id }),
+        /invalid_state/,
+      );
+
+      const nativeToConfirm = await call("native_start", ownerA, {
+        provider: "kick",
+        proof_hash: "d".repeat(64),
+        ticket_hash: "e".repeat(64),
+        session_id: session,
+      });
+      const pendingNative = await call("native_bind", ownerA, {
+        ...binding,
+        request_id: nativeToConfirm.request_id,
+        ticket_hash: "e".repeat(64),
+        state_hash: crypto.randomUUID(),
+      });
+      const pollNative = {
+        request_id: nativeToConfirm.request_id,
+        proof_hash: "d".repeat(64),
+        session_id: session,
+      };
+      const consumed = await call("consume", null, {
+        provider: "kick",
+        state_hash: pendingNative.state_hash,
+        browser_hash: "native-browser",
+      });
+      assert.equal(consumed.native, true);
+      await call("save_grant", ownerA, {
+        transaction_id: pendingNative.id,
+        grant: { opaque: "native" },
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        scopes: ["user:read"],
+      });
+      await call("ready", ownerA, {
+        transaction_id: pendingNative.id,
+        account: { id: "native-channel", name: "Native", picture: null },
+      });
+      assert.equal((await call("native_status", ownerA, pollNative)).status, "pending");
+      await assert.rejects(
+        () => call("confirm", ownerA, { transaction_id: pendingNative.id }),
+        /invalid_state/,
+      );
+      await sql`delete from auth.sessions where id=${browserSession}`;
+      await assert.rejects(() => call("native_confirm", ownerA, pollNative), /session_revoked/);
+      await sql`insert into auth.sessions(id,user_id) values(${browserSession},${ownerA})`;
+      assert.equal((await call("native_confirm", ownerA, pollNative)).display_name, "Native");
+      assert.equal((await call("native_status", ownerA, pollNative)).status, "confirmed");
+      // Remove the fixture before the existing assertions on connection/cleanup counts.
+      await sql`delete from public.yl_cast_connections where provider_user_id='native-channel'`;
+
       const tx = await start();
       await assert.rejects(
         () =>

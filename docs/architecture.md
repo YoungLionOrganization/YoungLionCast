@@ -27,33 +27,17 @@ cannot reactivate the connection after disconnect; its new token is queued separ
 revocation. Failed network cleanup retains encrypted work with backoff. No database lock is held
 while calling Twitch/Kick. See setup for backlog monitoring and integration limitations.
 
-There is no extra Rust OAuth daemon in v1: the chosen Edge Functions approach avoids another service
-to operate. The account client is a transport contract for the later native application, not a
-web-based replacement for the Qt UI.
+The Qt application signs in through the external browser with public-client PKCE S256 and stores its
+refresh token in the system keychain. A desktop request creates a one-time browser ticket and an
+independent polling proof. The broker requires the browser's authenticated YoungLion owner to match
+the request owner before issuing the existing browser proof. Desktop confirmation verifies both live
+sessions and the polling proof. See [the native setup guide](native.md).
 
-## Subsequent native and media phase
+The editor uses libobs for capture and composition. Only the active scene owns live sources. Qt
+Widgets manages the preview surface and editor docks. The GPU preview does not copy frames through
+Qt's CPU paint path.
 
-```mermaid
-flowchart LR
-  QT[Qt/C++ capture and interface] --> GPU[GPU composition]
-  GPU --> ENC[Hardware encoder per compatible profile]
-  ENC --> OUT[Rust output coordinator]
-  OUT --> DIRECT[Independent direct target queues]
-  OUT --> RELAY[One upstream to media relay]
-  DIRECT --> PLATFORMS[Twitch / Kick / YouTube accounts]
-  RELAY --> PLATFORMS
-```
-
-Native login will use YoungLion's public OAuth/OIDC client with S256 in the system browser and an OS
-credential store. The desktop will not contain a platform client secret or a Supabase secret. The
-Account-web PKCE helpers in `clients/account.ts` are for the Account portal integration, not that
-future native login implementation.
-
-Compatible outputs share encoded packets. Each target has bounded queues and independent
-reconnect/backoff so one congested target does not stall the others. Different codecs, resolutions
-or bitrate requirements require additional encoder profiles. Direct upload is approximately the sum
-of target bitrates; relay reduces desktop upload but incurs server egress cost. Mode is chosen
-before starting a stream. Media never traverses Postgres, Realtime or Edge Functions.
-
-Benchmark against OBS with the same hardware, source and output profile before making performance
-claims. CPU/GPU/RAM, frame drops and end-to-end delay are measurement targets, not achieved results.
+The first broadcast release will share an encoder per compatible profile and open a direct
+connection per destination. The [transport decision](adr/0001-direct-multistream.md) explains the
+trade-off. Media will not traverse Supabase. Performance comparisons with OBS require measurements
+on matching hardware, sources, and output settings.

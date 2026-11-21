@@ -67,11 +67,10 @@ host-only cookie with a per-transaction browser proof. The authenticated fetch i
 the callback requires that proof and the originating live YoungLion session. The proof is never
 included in the provider URL. A shared authorization URL therefore cannot bind another browser's
 account. A cross-site `*.supabase.co` API may have its cookies blocked by browsers; do not bypass
-the check or weaken SameSite to work around a missing first-party route. Account-web connections are
-supported in this phase; a future native client should open that authenticated web flow in the
-system browser, rather than transfer cookies to an embedded browser. `CAST_OAUTH_CLIENT_IDS`
-allowlists native OAuth client IDs when they are added later; ordinary first-party Account sessions
-do not have a `client_id` claim.
+the check or weaken SameSite to work around a missing first-party route.
+
+Native sign-in uses a public OAuth client and the system browser. Follow [native setup](native.md)
+for the registered loopback, `CAST_OAUTH_CLIENT_IDS`, and the Account-web handoff.
 
 Keep `CAST_ENABLED=false` until deployment, provider configuration and the confirmation page are
 ready. The switch disables new API work, including maintenance; drain cleanup jobs before a planned

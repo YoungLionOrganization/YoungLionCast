@@ -1,0 +1,14 @@
+QMainWindow { font-size: 13px; }
+QDockWidget { font-weight: 600; }
+QDockWidget::title { padding: 9px 10px; }
+QToolBar { spacing: 6px; padding: 6px; border: 0; }
+QPushButton, QToolButton { padding: 6px 10px; border-radius: 4px; }
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit { padding: 5px; border-radius: 3px; }
+QListWidget { padding: 4px; outline: 0; }
+QListWidget::item { min-height: 28px; padding: 3px 6px; border-radius: 3px; }
+QLabel#mutedLabel { font-size: 12px; }
+QLabel#brand { font-size: 15px; font-weight: 700; padding: 6px; }
+QStatusBar { font-size: 12px; }
+QMenu { padding: 4px; }
+QMenu::item { padding: 6px 22px; }
+QScrollArea { border: 0; }

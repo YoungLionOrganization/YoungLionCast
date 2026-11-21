@@ -101,6 +101,65 @@ export function createHandler(options: Options) {
         path === "/v1/login/twitch" && request.method === "POST",
       );
       await rate(options.store, `user:${user.id}`, 60);
+      if (path.startsWith("/v1/native/") && request.method === "POST") {
+        if (path === "/v1/native/start") {
+          const data = await body(request, ["provider", "proof_challenge", "connection_id"]);
+          if (
+            typeof data.proof_challenge !== "string" || !/^[0-9a-f]{64}$/.test(data.proof_challenge)
+          ) throw new AppError("invalid_body");
+          const ticket = randomToken();
+          const result = await options.store.rpc<Record<string, unknown>>("native_start", user.id, {
+            provider: platform(data.provider),
+            proof_hash: data.proof_challenge,
+            ticket_hash: await digest(ticket),
+            session_id: user.sessionId,
+            ...(data.connection_id ? { target: uuid(data.connection_id) } : {}),
+          });
+          return json({ ...result, ticket }, 200, headers);
+        }
+        if (path === "/v1/native/authorize") {
+          const data = await body(request, ["request_id", "ticket"]);
+          if (typeof data.ticket !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.ticket)) {
+            throw new AppError("invalid_body");
+          }
+          const binding = {
+            request_id: uuid(data.request_id),
+            ticket_hash: await digest(data.ticket),
+            session_id: user.sessionId,
+          };
+          const claimed = await options.store.rpc<{ provider: Platform; target?: string }>(
+            "native_claim",
+            user.id,
+            binding,
+          );
+          const started = await start(
+            options,
+            user.id,
+            claimed.provider,
+            user.sessionId,
+            claimed.target,
+            binding,
+          );
+          return json(started.body, 200, { ...headers, "Set-Cookie": started.cookie });
+        }
+        if (["/v1/native/status", "/v1/native/cancel", "/v1/native/confirm"].includes(path)) {
+          const data = await body(request, ["request_id", "proof"]);
+          if (typeof data.proof !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(data.proof)) {
+            throw new AppError("invalid_body");
+          }
+          const result = await options.store.rpc(
+            `native_${path.split("/").at(-1)}`,
+            user.id,
+            {
+              request_id: uuid(data.request_id),
+              proof_hash: await digest(data.proof),
+              session_id: user.sessionId,
+            },
+          );
+          return json(result, 200, headers);
+        }
+        throw new AppError("not_found", 404);
+      }
       if (path === "/v1/oauth/start" && request.method === "POST") {
         const data = await body(request, ["provider"]);
         const started = await start(options, user.id, platform(data.provider), user.sessionId);
@@ -197,19 +256,25 @@ async function start(
   name: Platform,
   sessionId: string,
   target?: string,
+  nativeBinding?: { request_id: string; ticket_hash: string; session_id: string },
 ) {
   const provider = options.provider(name);
   const id = crypto.randomUUID(), state = randomToken(), verifier = randomToken();
   const browserProof = randomToken(), stateHash = await digest(state);
-  const transaction = await options.store.rpc<Transaction>("start", owner, {
-    id,
-    provider: name,
-    state_hash: stateHash,
-    browser_hash: await digest(browserProof),
-    session_id: sessionId,
-    verifier: await options.vault.seal({ verifier }, `state:${owner}:${name}:${id}`),
-    ...(target ? { target } : {}),
-  });
+  const transaction = await options.store.rpc<Transaction>(
+    nativeBinding ? "native_bind" : "start",
+    owner,
+    {
+      ...nativeBinding,
+      id,
+      provider: name,
+      state_hash: stateHash,
+      browser_hash: await digest(browserProof),
+      session_id: sessionId,
+      verifier: await options.vault.seal({ verifier }, `state:${owner}:${name}:${id}`),
+      ...(target ? { target } : {}),
+    },
+  );
   return {
     cookie: `__Host-ylcast_${
       stateHash.slice(0, 32)
@@ -269,10 +334,13 @@ async function callbackRequest(
     await options.store.rpc("ready", tx.owner_id, { transaction_id: tx.id, account });
     const complete = new URL(options.completeUrl);
     complete.searchParams.set("transaction_id", tx.id);
-    return new Response(
-      `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>YoungLion Cast</title><h1>Account authorization received</h1><p>Return to YoungLion and confirm the account before it is connected.</p><a href="${
+    const completeMessage = tx.native
+      ? "Return to the YoungLion Cast desktop app to confirm this account.</p>"
+      : `Return to YoungLion and confirm the account before it is connected.</p><a href="${
         escape(complete.toString())
-      }">Return to YoungLion</a></html>`,
+      }">Return to YoungLion</a>`;
+    return new Response(
+      `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>YoungLion Cast</title><h1>Account authorization received</h1><p>${completeMessage}</html>`,
       {
         headers: {
           ...safeHeaders,

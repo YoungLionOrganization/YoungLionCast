@@ -1,8 +1,11 @@
 {
   "compilerOptions": { "strict": true },
   "nodeModulesDir": "manual",
-  "fmt": { "lineWidth": 100, "exclude": ["package-lock.json"] },
-  "lint": { "exclude": ["node_modules/"] },
+  "fmt": {
+    "lineWidth": 100,
+    "exclude": ["package-lock.json", "third_party/", "desktop/translations/"]
+  },
+  "lint": { "exclude": ["node_modules/", "third_party/", "desktop/translations/"] },
   "imports": {
     "postgres": "npm:postgres@3.4.7"
   }

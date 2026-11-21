@@ -90,6 +90,13 @@ export class CastAccountClient {
       "DELETE",
     );
   }
+  /** Browser must already be signed in as the native request's YoungLion owner. */
+  authorizeNative(requestId: string, ticket: string) {
+    return this.request<OAuthStart>("/native/authorize", "POST", {
+      request_id: requestId,
+      ticket,
+    });
+  }
   registerTwitchLogin(accessToken: string, refreshToken?: string) {
     return this.request<{ registered: true }>("/login/twitch", "POST", {
       access_token: accessToken,
@@ -98,7 +105,7 @@ export class CastAccountClient {
   }
 }
 
-/** Account-web integration helper; native YoungLion OIDC login is a subsequent deliverable. */
+/** Account-web integration helper; native OIDC is implemented separately in the Qt client. */
 export async function beginYoungLionLogin(
   supabaseUrl: string,
   provider: Platform,

@@ -1,29 +1,23 @@
 # YoungLion Cast
 
-Twitch/Kick account infrastructure for a lightweight Qt/C++/Rust broadcasting application. This
-first delivery implements OAuth and multiple publishing accounts, using Supabase Auth, Postgres and
-Deno Edge Functions. Capture, encoding, the native UI, YouTube and media relay are subsequent
-deliverables.
+An OBS-inspired scene editor built with Qt 6.12 Widgets, C++20 and libobs 33.0.1. Arrange scenes,
+position and crop sources, add text or images, and save projects locally. The native preview
+supports capture through the desktop platform's capture backend. The account panel manages multiple
+Twitch and Kick publishing accounts under one YoungLion Account.
 
-- Twitch sign-in uses Supabase's built-in provider.
-- Kick sign-in uses `custom:kick` and a normalized UserInfo adapter.
-- Publishing accounts use separate OAuth grants, explicit confirmation and atomic ownership.
-- Credentials are AES-256-GCM encrypted in an unexposed schema. No provider tokens are returned by
-  connection APIs.
-- Scheduled work validates, refreshes and revokes credentials with durable leases.
+Build the editor and configure native sign-in with the [desktop guide](docs/native.md). See the
+[license and dependency notices](third_party/NOTICE.md) before distributing a bundle.
 
-## Start here
+The Supabase backend uses separate OAuth grants for login and publishing. Twitch login uses
+Supabase's built-in provider. Kick login uses `custom:kick` and a normalized UserInfo adapter.
+Publishing credentials are encrypted and managed server-side. Native linking requires the same
+YoungLion owner in the system browser and on the desktop.
 
-1. `npm ci`
-2. `npm run verify` — unit checks; database tests are explicitly skipped unless configured.
-3. `npm run test:integration` — Docker-based disposable Postgres/PostgREST integration tests.
-4. Follow [setup](docs/setup.md), [API](docs/api.md) and [architecture](docs/architecture.md).
+- `npm ci && npm run verify` runs backend checks and unit tests.
+- `npm run test:integration` runs integration tests on disposable Postgres and PostgREST.
+- See [setup](docs/setup.md) and the [API](docs/api.md) for Account-web configuration.
 
-See the [verification record](docs/verification.md) for executed checks and integration limits.
-
-The Account site's source and OAuth developer credentials were not supplied. The backend and
-[typed integration client](clients/account.ts) are prepared; they are **not deployed or integrated
-into the live Account website**. Browser linking requires a first-party API route with cookie
-support, as documented in setup. Production OAuth sign-in, email-less onboarding and the platform
-stream-key APIs have not been live-verified. Neither the native desktop nor video streaming is
-implemented in this phase.
+The current application delivers capture and scene editing. Live account verification requires a
+deployed staging backend, an Account frontend and registered OAuth apps. Broadcast output is a
+separate delivery, with shared encoding and direct connections described in the
+[transport decision](docs/adr/0001-direct-multistream.md).

@@ -1,0 +1,9 @@
+{
+  "clientId": "REGISTERED-PUBLIC-OAUTH-CLIENT-ID",
+  "publishableKey": "sb_publishable_REPLACE_ME",
+  "authorizationUrl": "https://YOUR-PROJECT.supabase.co/auth/v1/oauth/authorize",
+  "tokenUrl": "https://YOUR-PROJECT.supabase.co/auth/v1/oauth/token",
+  "logoutUrl": "https://YOUR-PROJECT.supabase.co/auth/v1/logout",
+  "apiBase": "https://account.example.com/functions/v1/platform-connections/v1",
+  "accountWebUrl": "https://account.example.com/connections"
+}

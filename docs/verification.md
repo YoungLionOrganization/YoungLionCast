@@ -46,3 +46,17 @@ full suite verified the fixes; no second independent review is claimed.
   are outside this first delivery. No OBS performance comparison was made.
 - No hosted migration, provider setup, function deployment, DNS change or push was performed. The
   work stays on local branch `feat/platform-oauth`.
+
+## Native editor verification — 2026-11-21
+
+- A fresh CMake Release build used Qt 6.12.0, GCC 14, and the selected libobs 33.0.1 modules on
+  Debian 13 x64. The five CTest suites passed, including the OAuth PKCE loopback parameters.
+- In Xvfb with Mesa llvmpipe, the capture suite exercised libobs XShm display capture and checked
+  image composition, opacity, visibility, scene switches and media destruction. The staged Linux
+  bundle opened with its packaged Qt/OBS libraries and rendered text and image layers.
+- `npm run verify` passed with 32 unit tests. The two ignored integration tests both passed
+  separately with `npm run test:integration` against disposable PostgreSQL and PostgREST. The broker
+  test exercised ticket reuse, wrong owner and session, proof mismatch, cancellation, successful
+  confirmation, and confirmation after browser session revocation.
+- Hardware, Wayland portal, Windows/macOS packages, deployed OAuth and comparative performance still
+  need verification in their target environments. The CI matrix defines those platform builds.

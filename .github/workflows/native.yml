@@ -1,0 +1,84 @@
+name: Native editor
+on:
+  push:
+    paths: [
+      "CMakeLists.txt",
+      "desktop/**",
+      "cmake/**",
+      "third_party/**",
+      "scripts/native-*.py",
+      ".github/workflows/native.yml",
+    ]
+  pull_request:
+    paths: [
+      "CMakeLists.txt",
+      "desktop/**",
+      "cmake/**",
+      "third_party/**",
+      "scripts/native-*.py",
+      ".github/workflows/native.yml",
+    ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-26.04
+            qt-host: linux
+          - os: windows-2025-vs2026
+            qt-host: windows
+            qt-arch: win64_msvc2022_64
+          - os: macos-15
+            qt-host: mac
+            qt-arch: clang_64
+          - os: macos-15-intel
+            qt-host: mac
+            qt-arch: clang_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Linux build and preview dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libjansson-dev libsimde-dev uthash-dev libglib2.0-dev uuid-dev zlib1g-dev libx11-dev libx11-xcb-dev libxcb1-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinput-dev libxcb-shape0-dev libpipewire-0.3-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-0 libgl-dev libegl-dev libfreetype-dev libfontconfig-dev libdrm-dev libsecret-1-dev libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 xvfb xauth
+          python -m pip install py7zr==1.1.0
+      - name: Linux Qt and libobs SDK
+        if: runner.os == 'Linux'
+        run: python scripts/native-sdk.py --root build-sdk --linux-qt
+      - name: Qt for Windows or macOS
+        if: runner.os != 'Linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.12.0"
+          host: ${{ matrix.qt-host }}
+          arch: ${{ matrix.qt-arch }}
+          modules: qtnetworkauth
+          cache: true
+      - name: libobs SDK
+        if: runner.os != 'Linux'
+        run: python scripts/native-sdk.py --root build-sdk
+      - name: Build and stage Linux bundle
+        if: runner.os == 'Linux'
+        run: |
+          python scripts/native-release.py --sdk build-sdk --qt build-sdk/qt --build build-native --output dist
+          xvfb-run -a env CAST_TEST_GPU=1 QT_QPA_PLATFORM=xcb LD_LIBRARY_PATH="$PWD/build-sdk/qt/lib:$PWD/build-sdk/qt:$PWD/build-sdk/obs/lib:$PWD/build-sdk/media/lib" ctest --test-dir build-native -R '^capture$' --output-on-failure
+          xvfb-run -a ./dist/YoungLionCast --smoke --screenshot "$PWD/editor.png"
+      - name: Build and stage Windows or macOS bundle
+        if: runner.os != 'Linux'
+        shell: bash
+        run: python scripts/native-release.py --sdk build-sdk --qt "$QT_ROOT_DIR" --build build-native --output dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YoungLion-Cast-${{ matrix.os }}
+          path: |
+            dist/
+            editor.png

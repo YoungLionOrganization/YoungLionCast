@@ -16,6 +16,7 @@ export interface Transaction {
   verifier: Envelope;
   expires_at: string;
   account?: Account;
+  native?: boolean;
 }
 export interface Credential {
   id: string;

@@ -1,0 +1,49 @@
+{
+  "qtVersion": "6.12.0",
+  "linuxQtArchives": [
+    {
+      "name": "qtnetworkauth-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.addons.qtnetworkauth.linux_gcc_64/6.12.0-0-202609280346qtnetworkauth-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "832c52d55e0e02b3082e3ad11adc544681c9298c50e475ea4430c4476ef15215"
+    },
+    {
+      "name": "qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346qtbase-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "943023b929d0c08eafe7341700b5ed7601284410b7afd6093f950be291d1d7cd"
+    },
+    {
+      "name": "qtsvg-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346qtsvg-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "22a7404505a2883c54556183f19adfff1cdbea30664e34bfd4171180802142e9"
+    },
+    {
+      "name": "qttools-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346qttools-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "5d6f90961df3a1e5a57fac69bbbe6983860bad11c419a49736b84914588b4334"
+    },
+    {
+      "name": "qtwayland-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346qtwayland-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "14c0dc4c8147cf9f7f64909b27ae5c9ab2aaa8ad6625bc2248c693c2a327ab5b"
+    },
+    {
+      "name": "icu-linux-Rhel8.6-x86_64.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346icu-linux-Rhel8.6-x86_64.7z",
+      "sha256": "1fdbcd67b1760f3a3f031c64637a9f19992aed2f35aa615e12a468f8c655d4da"
+    },
+    {
+      "name": "qtdeclarative.7z",
+      "url": "https://download.qt.io/online/qtsdkrepository/linux_x64/desktop/qt6_6120/qt6_6120/qt.qt6.6120.linux_gcc_64/6.12.0-0-202609280346qtdeclarative-Linux-RHEL_9_6-GCC-Linux-RHEL_9_6-X86_64.7z",
+      "sha256": "0c719e17ea9fbd37aa615595149dca2578985656433f27bf2846cffe4b687d3e"
+    }
+  ],
+  "obs": {
+    "version": "33.0.1",
+    "commit": "65c320b46e1af5c7a555161aea6182cdf7a8c524",
+    "sha256": "03bff13f4e6e8f9e0b42a5390fe0b18205c8f7dac2e787de0e0afb5d91c375ff"
+  },
+  "ffmpeg": {
+    "version": "8.0",
+    "sha256": "b2751fccb6cc4c77708113cd78b561059b6fa904b24162fa0be2d60273d27b8e"
+  }
+}

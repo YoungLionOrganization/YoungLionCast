@@ -52,3 +52,15 @@ YoungLion JWT.
 `oauth-maintenance` accepts POST with `X-Cast-Maintenance`. The secret is server-only and stored in
 Vault for Cron. The response contains only processed/succeeded counts. Do not invoke it from a
 browser or give its secret to a native application.
+
+### Native publishing-account handoff
+
+- `POST /native/start` takes `provider`, a hex SHA-256 `proof_challenge`, and an optional
+  `connection_id` for reconnect. It returns `request_id`, a browser `ticket`, and `expires_at`.
+- `POST /native/authorize` takes `request_id` and `ticket` in the same owner's authenticated
+  browser. It consumes the ticket while creating the provider transaction and sets the callback
+  proof cookie. The desktop never receives that cookie.
+- `POST /native/status`, `/native/confirm`, and `/native/cancel` take `request_id` and the original
+  43-character base64url `proof` in the originating desktop session. Status returns `waiting`,
+  `pending` with the channel, `confirmed`, `failed`, `cancelled`, or `expired`. Native confirmation
+  requires the browser session and desktop session to still be active.

@@ -1,0 +1,11 @@
+QWidget { background: #242730; color: #e8eaf0; }
+QMainWindow { background: #191c23; }
+QDockWidget::title, QToolBar, QStatusBar { background: #2c303a; }
+QListWidget, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QPlainTextEdit { background: #1b1e26; border: 1px solid #414653; }
+QListWidget::item:selected { background: #404767; color: #ffffff; }
+QPushButton, QToolButton { background: #363b48; border: 1px solid #4b5261; }
+QPushButton:hover, QToolButton:hover { background: #454e63; }
+QPushButton:disabled, QToolButton:disabled { color: #818897; }
+QLabel#mutedLabel { color: #a8afbf; }
+QMenu::item:selected { background: #404767; }
+QSplitter::handle { background: #14171d; }
