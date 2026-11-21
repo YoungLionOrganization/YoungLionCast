@@ -4,6 +4,7 @@
 #include "stream_session.h"
 #include <QApplication>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QStandardPaths>
 #include <QTcpServer>
 #include <QTemporaryDir>
@@ -53,17 +54,27 @@ class StreamTest : public QObject {
         b.close();
         QTemporaryDir temp;
         QVERIFY(temp.isValid());
+        auto toolsEnvironment = QProcessEnvironment::systemEnvironment();
+        // The desktop uses a minimal FFmpeg SDK. The receivers use the system FFmpeg build.
+        // Keep the two library sets separate even when their major versions match.
+        toolsEnvironment.remove("LD_LIBRARY_PATH");
+        toolsEnvironment.remove("DYLD_LIBRARY_PATH");
         QProcess receiverA, receiverB;
         const auto file = temp.filePath("capture.flv");
         auto listen = [&](QProcess &proc, const QString &url, const QStringList &tail) {
-            proc.start(ffmpeg, QStringList{"-nostdin", "-hide_banner", "-loglevel", "error", "-listen", "1",
-                                "-i", url, "-an", "-c:v", "copy"} +
+            proc.setProcessEnvironment(toolsEnvironment);
+            proc.start(ffmpeg, QStringList{"-nostdin", "-hide_banner", "-loglevel", "error",
+                                           "-listen", "1", "-i", url, "-an", "-c:v", "copy"} +
                                    tail);
             return proc.waitForStarted();
         };
         QVERIFY(listen(receiverA, first, {"-f", "null", "-"}));
         QVERIFY(listen(receiverB, second, {"-f", "flv", file}));
         QTest::qWait(600);
+        QVERIFY2(receiverA.state() == QProcess::Running,
+                 receiverA.readAllStandardError().constData());
+        QVERIFY2(receiverB.state() == QProcess::Running,
+                 receiverB.readAllStandardError().constData());
         StreamSession session;
         QVERIFY(!session.start({first, first}, &error));
         QVERIFY2(session.start({first, second}, &error), qPrintable(error));
@@ -81,6 +92,7 @@ class StreamTest : public QObject {
         if (receiverB.state() != QProcess::NotRunning)
             QVERIFY(receiverB.waitForFinished(6000));
         QProcess probe;
+        probe.setProcessEnvironment(toolsEnvironment);
         probe.start(ffprobe, {"-v", "error", "-show_entries", "stream=codec_name,width,height",
                               "-of", "csv=p=0", file});
         QVERIFY(probe.waitForFinished());

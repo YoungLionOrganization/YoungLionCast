@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths: [
       release/release.json,
+      "desktop/**",
+      CMakeLists.txt,
       .github/workflows/native.yml,
       .github/workflows/publish-release.yml,
       cmake/native-builds.json,
