@@ -64,7 +64,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libjansson-dev libsimde-dev uthash-dev libglib2.0-dev uuid-dev zlib1g-dev libx11-dev libx11-xcb-dev libxcb1-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinput-dev libxcb-shape0-dev libpipewire-0.3-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-0 libgl-dev libegl-dev libfreetype-dev libfontconfig-dev libdrm-dev libsecret-1-dev libmbedtls-dev libx264-dev ffmpeg libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 xvfb xauth
+          sudo apt-get install -y ninja-build extra-cmake-modules libjansson-dev libsimde-dev uthash-dev libglib2.0-dev uuid-dev zlib1g-dev libx11-dev libx11-xcb-dev libxcb1-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinput-dev libxcb-shape0-dev libpipewire-0.3-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-0 libgl-dev libegl-dev libfreetype-dev libfontconfig-dev libdrm-dev libsecret-1-dev libmbedtls-dev libx264-dev ffmpeg libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 xvfb xauth
           python -m pip install py7zr==1.1.0
       - name: Linux Qt and libobs SDK
         if: runner.os == 'Linux'

@@ -2,7 +2,14 @@ name: Publish release
 on:
   push:
     branches: [main]
-    paths: [release/release.json]
+    paths: [
+      release/release.json,
+      .github/workflows/native.yml,
+      .github/workflows/publish-release.yml,
+      cmake/native-builds.json,
+      scripts/native-sdk.py,
+      scripts/native-release.py,
+    ]
   workflow_dispatch:
 permissions:
   contents: read

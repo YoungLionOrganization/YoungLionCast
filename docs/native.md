@@ -12,8 +12,8 @@ For release downloads, scene editing and the two-receiver demo, see the
 
 Install Python 3.12+, CMake 3.28+, the Qt **6.12.0** desktop SDK with Network Authorization, and a
 native toolchain. Linux requires Ninja and the development packages listed in the desktop CI
-workflow. Windows uses Visual Studio 18 2026 and the 10.0.26100 SDK. macOS uses current Xcode with
-deployment target 14.4. Use the SDK for the host architecture.
+workflow. Windows uses Visual Studio 18 2026 and the 10.0.26100 SDK. macOS builds use Xcode 26.5 or
+newer with deployment target 14.4. Use the SDK for the host architecture.
 
 ```sh
 python scripts/native-sdk.py --root build-sdk

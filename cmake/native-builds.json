@@ -6,6 +6,6 @@
     "qt-arch": "win64_msvc2022_64",
     "asset": "windows-x64"
   },
-  { "os": "macos-15", "qt-host": "mac", "qt-arch": "clang_64", "asset": "macos-arm64" },
-  { "os": "macos-15-intel", "qt-host": "mac", "qt-arch": "clang_64", "asset": "macos-x64" }
+  { "os": "macos-26", "qt-host": "mac", "qt-arch": "clang_64", "asset": "macos-arm64" },
+  { "os": "macos-26-intel", "qt-host": "mac", "qt-arch": "clang_64", "asset": "macos-x64" }
 ]
