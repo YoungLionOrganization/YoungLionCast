@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     QApplication app(argc, argv);
     app.setOrganizationName("YoungLion");
     app.setApplicationName("YoungLion Cast");
-    app.setApplicationVersion("0.2.0");
+    app.setApplicationVersion(CAST_VERSION);
     app.setStyle("Fusion");
     QTranslator translator;
     if (translator.load(":/i18n/younglion_tr_TR.qm"))

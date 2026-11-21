@@ -1,0 +1,9 @@
+{
+  "version": "0.3.0",
+  "tag": "v0.3.0",
+  "title": "YoungLion Cast v0.3.0",
+  "target_branch": "main",
+  "release_notes_path": "release/notes/v0.3.0.md",
+  "prerelease": true,
+  "update_track": "preview"
+}

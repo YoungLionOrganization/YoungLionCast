@@ -1,0 +1,100 @@
+name: Publish release
+on:
+  push:
+    branches: [main]
+    paths: [release/release.json]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cast-release-main
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      exists: ${{ steps.release.outputs.exists }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      release_notes_path: ${{ steps.release.outputs.release_notes_path }}
+      title: ${{ steps.release.outputs.title }}
+      prerelease: ${{ steps.release.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release-metadata.py >> "$GITHUB_OUTPUT"
+          tag=$(jq -r .tag release/release.json)
+          exists=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq ".[] | select(.tag_name == \"$tag\") | .id")
+          if [[ -n "$exists" ]]; then echo 'exists=true' >> "$GITHUB_OUTPUT"; else echo 'exists=false' >> "$GITHUB_OUTPUT"; fi
+  verify:
+    needs: preflight
+    if: needs.preflight.outputs.exists == 'false'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci && npm run verify && npm run test:integration
+  native:
+    needs: preflight
+    if: needs.preflight.outputs.exists == 'false'
+    uses: ./.github/workflows/native.yml
+    with:
+      version: ${{ needs.preflight.outputs.version }}
+  publish:
+    needs: [preflight, verify, native]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cast-release-*
+          merge-multiple: true
+          path: release-assets
+      - name: Verify bundles and archive the matching source
+        env:
+          CAST_TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for platform in linux-x64 macos-arm64 macos-x64 windows-x64; do
+            extension=tar.gz
+            [[ "$platform" != windows-x64 ]] || extension=zip
+            asset="YoungLionCast-$CAST_TAG-$platform.$extension"
+            (cd release-assets && sha256sum --check "$asset.sha256")
+          done
+          source="YoungLionCast-$CAST_TAG-source.tar.gz"
+          git archive --format=tar.gz --prefix="YoungLionCast-$CAST_TAG/" -o "release-assets/$source" "$GITHUB_SHA"
+          (cd release-assets && sha256sum "$source" > "$source.sha256")
+          (cd release-assets && cat ./*.sha256 | sort -k2 > SHA256SUMS.txt)
+      - name: Publish exact build commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CAST_TAG: ${{ needs.preflight.outputs.tag }}
+          CAST_TITLE: ${{ needs.preflight.outputs.title }}
+          CAST_NOTES: ${{ needs.preflight.outputs.release_notes_path }}
+          CAST_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if git show-ref --verify --quiet "refs/tags/$CAST_TAG"; then
+            test "$(git rev-list -n 1 "$CAST_TAG")" = "$GITHUB_SHA"
+          fi
+          args=()
+          if [[ "$CAST_PRERELEASE" == true ]]; then args+=(--prerelease --latest=false); fi
+          gh release create "$CAST_TAG" release-assets/YoungLionCast-* release-assets/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "$CAST_TITLE" --notes-file "$CAST_NOTES" "${args[@]}"

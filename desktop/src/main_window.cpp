@@ -2,6 +2,7 @@
 #include "accounts.h"
 #include "media_engine.h"
 #include "preview.h"
+#include "stream_session.h"
 #include "theme.h"
 #include <QActionGroup>
 #include <QCheckBox>
@@ -193,6 +194,90 @@ MainWindow::MainWindow(MediaEngine *engine, QWidget *parent)
     auto *accountsDock =
         dock(tr("Yayın hesapları"), "accountsDock", Qt::BottomDockWidgetArea, account);
     splitDockWidget(sourcesDock, accountsDock, Qt::Horizontal);
+    m_stream = new StreamSession(this);
+    auto *streamPanel = new QWidget;
+    auto *streamLayout = new QVBoxLayout(streamPanel);
+    auto *streamLabel = new QLabel(tr("RTMP hedefleri · her satıra bir adres"));
+    auto *targets = new QPlainTextEdit;
+    targets->setObjectName("streamTargets");
+    targets->setPlaceholderText("rtmp://127.0.0.1:1935/live/cast");
+    streamLabel->setBuddy(targets);
+    targets->setAccessibleName(tr("Yerel RTMP hedefleri"));
+    targets->setMaximumBlockCount(12);
+    targets->setFixedHeight(76);
+    auto *streamStatus = new QLabel;
+    streamStatus->setWordWrap(true);
+    auto *streamButton = new QPushButton(tr("Yerel yayını başlat"));
+    streamButton->setObjectName("localStreamButton");
+    streamButton->setEnabled(m_engine->ready() && StreamSession::available());
+    streamLayout->addWidget(streamLabel);
+    streamLayout->addWidget(targets);
+    streamLayout->addWidget(streamStatus);
+    streamLayout->addWidget(streamButton);
+    streamLayout->addStretch();
+    auto *streamDock =
+        dock(tr("Yerel yayın"), "localStreamDock", Qt::BottomDockWidgetArea, streamPanel);
+    tabifyDockWidget(accountsDock, streamDock);
+    accountsDock->raise();
+    if (!streamButton->isEnabled())
+        streamStatus->setText(tr("Yerel RTMP için H.264 ve RTMP modülleri gerekli."));
+    auto *streamTimer = new QTimer(this);
+    streamTimer->setInterval(500);
+    connect(streamTimer, &QTimer::timeout, this, [this, streamStatus] {
+        QStringList lines;
+        for (const auto &target : m_stream->status()) {
+            QString state;
+            switch (target.state) {
+            case StreamSession::State::Connecting:
+                state = tr("Bağlanıyor");
+                break;
+            case StreamSession::State::Live:
+                state = tr("Yayında");
+                break;
+            case StreamSession::State::Reconnecting:
+                state = tr("Yeniden bağlanıyor");
+                break;
+            case StreamSession::State::Stopped:
+                state = tr("Durdu");
+                break;
+            case StreamSession::State::Failed:
+                state = tr("Bağlantı başarısız");
+                break;
+            }
+            lines.append(tr("Hedef %1 · %2 · %3 KiB · %4 düşen kare")
+                             .arg(lines.size() + 1)
+                             .arg(state)
+                             .arg(target.bytes / 1024)
+                             .arg(target.droppedFrames));
+        }
+        streamStatus->setText(lines.join("\n"));
+    });
+    connect(streamButton, &QPushButton::clicked, this,
+            [this, targets, streamButton, streamStatus, streamTimer] {
+                if (m_stream->running()) {
+                    streamTimer->stop();
+                    m_stream->stop();
+                    targets->setReadOnly(false);
+                    streamButton->setText(tr("Yerel yayını başlat"));
+                    streamStatus->setText(tr("Yerel yayın durduruldu."));
+                    m_engine->sync(m_document.json());
+                    return;
+                }
+                QStringList urls;
+                for (const auto &line : targets->toPlainText().split(u'\n')) {
+                    if (!line.trimmed().isEmpty())
+                        urls.append(line.trimmed());
+                }
+                QString error;
+                if (!m_stream->start(urls, &error)) {
+                    streamStatus->setText(error);
+                    return;
+                }
+                targets->setReadOnly(true);
+                streamButton->setText(tr("Yerel yayını durdur"));
+                streamStatus->setText(tr("Bağlanıyor"));
+                streamTimer->start();
+            });
     auto *file = menuBar()->addMenu(tr("Dosya"));
     file->addAction(tr("Yeni proje"), QKeySequence::New, this, [this] {
         if (mayDiscard())
@@ -342,6 +427,7 @@ MainWindow::MainWindow(MediaEngine *engine, QWidget *parent)
                           : tr("Yakalama motoru kullanılamıyor · çevrimdışı sahne düzenleme"));
 }
 MainWindow::~MainWindow() {
+    m_stream->stop();
     delete m_preview;
     m_preview = nullptr;
 }

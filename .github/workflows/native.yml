@@ -19,6 +19,11 @@ on:
       ".github/workflows/native.yml",
     ]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -29,14 +34,18 @@ jobs:
         include:
           - os: ubuntu-26.04
             qt-host: linux
+            asset: linux-x64
           - os: windows-2025-vs2026
             qt-host: windows
+            asset: windows-x64
             qt-arch: win64_msvc2022_64
           - os: macos-15
             qt-host: mac
+            asset: macos-arm64
             qt-arch: clang_64
           - os: macos-15-intel
             qt-host: mac
+            asset: macos-x64
             qt-arch: clang_64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -49,7 +58,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build libjansson-dev libsimde-dev uthash-dev libglib2.0-dev uuid-dev zlib1g-dev libx11-dev libx11-xcb-dev libxcb1-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinput-dev libxcb-shape0-dev libpipewire-0.3-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-0 libgl-dev libegl-dev libfreetype-dev libfontconfig-dev libdrm-dev libsecret-1-dev libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 xvfb xauth
+          sudo apt-get install -y ninja-build libjansson-dev libsimde-dev uthash-dev libglib2.0-dev uuid-dev zlib1g-dev libx11-dev libx11-xcb-dev libxcb1-dev libxcb-composite0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinput-dev libxcb-shape0-dev libpipewire-0.3-dev libwayland-dev libxkbcommon-dev libxkbcommon-x11-0 libgl-dev libegl-dev libfreetype-dev libfontconfig-dev libdrm-dev libsecret-1-dev libmbedtls-dev libx264-dev ffmpeg libxcb-cursor0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-render-util0 xvfb xauth
           python -m pip install py7zr==1.1.0
       - name: Linux Qt and libobs SDK
         if: runner.os == 'Linux'
@@ -70,13 +79,26 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           python scripts/native-release.py --sdk build-sdk --qt build-sdk/qt --build build-native --output dist
-          xvfb-run -a env CAST_TEST_GPU=1 QT_QPA_PLATFORM=xcb LD_LIBRARY_PATH="$PWD/build-sdk/qt/lib:$PWD/build-sdk/qt:$PWD/build-sdk/obs/lib:$PWD/build-sdk/media/lib" ctest --test-dir build-native -R '^capture$' --output-on-failure
+          xvfb-run -a env CAST_TEST_GPU=1 CAST_TEST_RTMP=1 QT_QPA_PLATFORM=xcb LD_LIBRARY_PATH="$PWD/build-sdk/qt/lib:$PWD/build-sdk/qt:$PWD/build-sdk/obs/lib:$PWD/build-sdk/media/lib" ctest --test-dir build-native --output-on-failure
           xvfb-run -a ./dist/YoungLionCast --smoke --screenshot "$PWD/editor.png"
       - name: Build and stage Windows or macOS bundle
         if: runner.os != 'Linux'
         shell: bash
         run: python scripts/native-release.py --sdk build-sdk --qt "$QT_ROOT_DIR" --build build-native --output dist
+      - name: Archive release bundle
+        if: inputs.version != ''
+        env:
+          CAST_RELEASE_VERSION: ${{ inputs.version }}
+          CAST_RELEASE_PLATFORM: ${{ matrix.asset }}
+        run: python scripts/archive-native.py
       - uses: actions/upload-artifact@v4
+        if: inputs.version != ''
+        with:
+          name: cast-release-${{ matrix.asset }}
+          path: release-assets/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: inputs.version == ''
         with:
           name: YoungLion-Cast-${{ matrix.os }}
           path: |

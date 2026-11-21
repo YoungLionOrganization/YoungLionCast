@@ -1,4 +1,5 @@
 #include "media_engine.h"
+#include "stream_session.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -134,9 +135,10 @@ bool MediaEngine::initialize(QString *failure) {
     v.scale_type = OBS_SCALE_BILINEAR;
     if (obs_reset_video(&v) != OBS_VIDEO_SUCCESS)
         return fail(tr("GPU görüntü motoru başlatılamadı. Ekran sürücüsünü kontrol edin."));
-    // Load only the capabilities shipped with this editor (no browser, encoding or audio modules).
-    for (const auto name : {"image-source", "text-freetype2", "obs-filters", "linux-capture",
-                            "linux-pipewire", "win-capture", "mac-capture"}) {
+    // Load just the editor and local streaming modules.
+    for (const auto name :
+         {"image-source", "text-freetype2", "obs-filters", "linux-capture", "linux-pipewire",
+          "win-capture", "mac-capture", "obs-outputs", "obs-x264"}) {
 #ifdef Q_OS_WIN
         const auto filename = QString(name) + "/" + name + ".dll";
 #elif defined(Q_OS_MACOS)
@@ -182,6 +184,7 @@ bool MediaEngine::initialize(QString *failure) {
         }
     }
     obs_post_load_modules();
+    StreamSession::registerService();
     m_scene = obs_scene_create_private("YoungLion preview");
     if (!m_scene)
         return fail(tr("Sahne oluşturulamadı."));

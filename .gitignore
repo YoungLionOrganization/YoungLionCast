@@ -11,3 +11,4 @@ dist/
 *.user
 
 __pycache__/
+release-assets/

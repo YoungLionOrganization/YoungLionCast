@@ -37,7 +37,8 @@ The editor uses libobs for capture and composition. Only the active scene owns l
 Widgets manages the preview surface and editor docks. The GPU preview does not copy frames through
 Qt's CPU paint path.
 
-The first broadcast release will share an encoder per compatible profile and open a direct
-connection per destination. The [transport decision](adr/0001-direct-multistream.md) explains the
-trade-off. Media will not traverse Supabase. Performance comparisons with OBS require measurements
-on matching hardware, sources, and output settings.
+The local RTMP preview shares one H.264 encoder and uses a separate direct connection for each
+receiver. Each receiver has a bounded queue and its own retry state. The
+[transport decision](adr/0001-direct-multistream.md) explains the trade-off. Media will not traverse
+Supabase. Performance comparisons with OBS require measurements on matching hardware, sources, and
+output settings.

@@ -174,6 +174,58 @@
             <translation>Yayın hesapları</translation>
         </message>
         <message>
+            <source>RTMP hedefleri · her satıra bir adres</source>
+            <translation>RTMP hedefleri · her satıra bir adres</translation>
+        </message>
+        <message>
+            <source>Yerel RTMP hedefleri</source>
+            <translation>Yerel RTMP hedefleri</translation>
+        </message>
+        <message>
+            <source>Yerel yayını başlat</source>
+            <translation>Yerel yayını başlat</translation>
+        </message>
+        <message>
+            <source>Yerel yayın</source>
+            <translation>Yerel yayın</translation>
+        </message>
+        <message>
+            <source>Yerel RTMP için H.264 ve RTMP modülleri gerekli.</source>
+            <translation>Yerel RTMP için H.264 ve RTMP modülleri gerekli.</translation>
+        </message>
+        <message>
+            <source>Bağlanıyor</source>
+            <translation>Bağlanıyor</translation>
+        </message>
+        <message>
+            <source>Yayında</source>
+            <translation>Yayında</translation>
+        </message>
+        <message>
+            <source>Yeniden bağlanıyor</source>
+            <translation>Yeniden bağlanıyor</translation>
+        </message>
+        <message>
+            <source>Durdu</source>
+            <translation>Durdu</translation>
+        </message>
+        <message>
+            <source>Bağlantı başarısız</source>
+            <translation>Bağlantı başarısız</translation>
+        </message>
+        <message>
+            <source>Hedef %1 · %2 · %3 KiB · %4 düşen kare</source>
+            <translation>Hedef %1 · %2 · %3 KiB · %4 düşen kare</translation>
+        </message>
+        <message>
+            <source>Yerel yayın durduruldu.</source>
+            <translation>Yerel yayın durduruldu.</translation>
+        </message>
+        <message>
+            <source>Yerel yayını durdur</source>
+            <translation>Yerel yayını durdur</translation>
+        </message>
+        <message>
             <source>Dosya</source>
             <translation>Dosya</translation>
         </message>
@@ -626,6 +678,41 @@ Bu sürüm sahne düzenleme ve yakalama içindir. Yayın, kayıt ve ses çıkı�
         <message>
             <source>Proje JSON biçimi geçersiz.</source>
             <translation>Proje JSON biçimi geçersiz.</translation>
+        </message>
+    </context>
+    <context>
+        <name>Cast::StreamSession</name>
+        <message>
+            <source>Önce mevcut yayını durdurun.</source>
+            <translation>Önce mevcut yayını durdurun.</translation>
+        </message>
+        <message>
+            <source>Yerel RTMP ve H.264 modülleri yüklenemedi.</source>
+            <translation>Yerel RTMP ve H.264 modülleri yüklenemedi.</translation>
+        </message>
+        <message>
+            <source>Bir ile dört arasında yerel yayın hedefi girin.</source>
+            <translation>Bir ile dört arasında yerel yayın hedefi girin.</translation>
+        </message>
+        <message>
+            <source>Her hedef rtmp://127.0.0.1:1935/live/test biçiminde olmalıdır.</source>
+            <translation>Her hedef rtmp://127.0.0.1:1935/live/test biçiminde olmalıdır.</translation>
+        </message>
+        <message>
+            <source>Aynı hedefi birden fazla kez eklemeyin.</source>
+            <translation>Aynı hedefi birden fazla kez eklemeyin.</translation>
+        </message>
+        <message>
+            <source>H.264 kodlayıcı oluşturulamadı.</source>
+            <translation>H.264 kodlayıcı oluşturulamadı.</translation>
+        </message>
+        <message>
+            <source>RTMP çıkışı oluşturulamadı.</source>
+            <translation>RTMP çıkışı oluşturulamadı.</translation>
+        </message>
+        <message>
+            <source>Yerel RTMP çıkışları başlatılamadı.</source>
+            <translation>Yerel RTMP çıkışları başlatılamadı.</translation>
         </message>
     </context>
     <context>

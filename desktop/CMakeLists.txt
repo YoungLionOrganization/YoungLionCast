@@ -49,7 +49,7 @@ target_include_directories(cast_accounts PUBLIC src PRIVATE ../third_party/qtkey
   "${CMAKE_CURRENT_BINARY_DIR}/qtkeychain/qtkeychain")
 target_compile_definitions(cast_accounts PRIVATE QT6KEYCHAIN_STATIC_DEFINE)
 
-add_library(cast_media src/media_engine.cpp src/preview.cpp)
+add_library(cast_media src/media_engine.cpp src/preview.cpp src/stream_session.cpp)
 target_link_libraries(cast_media PUBLIC cast_document OBS::libobs Qt6::Widgets)
 if(WIN32)
   set(obs_core "${CAST_OBS_PREFIX}/core")
@@ -75,6 +75,7 @@ target_compile_definitions(cast_ui PRIVATE CAST_STYLE_DIR="${CMAKE_CURRENT_SOURC
 
 qt_add_executable(younglion-cast src/main.cpp)
 target_link_libraries(younglion-cast PRIVATE cast_ui)
+target_compile_definitions(younglion-cast PRIVATE CAST_VERSION="${PROJECT_VERSION}")
 set_target_properties(younglion-cast PROPERTIES WIN32_EXECUTABLE TRUE MACOSX_BUNDLE TRUE
   MACOSX_BUNDLE_GUI_IDENTIFIER "com.younglion.cast")
 qt_add_translations(younglion-cast TS_FILES translations/younglion_tr_TR.ts)
@@ -107,7 +108,7 @@ else()
 endif()
 install(TARGETS younglion-cast BUNDLE DESTINATION . RUNTIME DESTINATION bin)
 install(DIRECTORY styles DESTINATION "${cast_resources}")
-install(FILES ../LICENSE ../third_party/NOTICE.md ../third_party/licenses/OBS-GPL-2.txt DESTINATION "${cast_resources}/licenses")
+install(FILES ../LICENSE ../COPYING ../third_party/NOTICE.md ../third_party/licenses/OBS-GPL-2.txt DESTINATION "${cast_resources}/licenses")
 install(FILES ../third_party/qtkeychain/COPYING DESTINATION "${cast_resources}/licenses" RENAME QtKeychain-BSD.txt)
 
 if(BUILD_TESTING)
@@ -116,6 +117,8 @@ if(BUILD_TESTING)
   cast_test(accounts cast_accounts)
   target_link_libraries(cast_accounts_test PRIVATE Qt6::Gui)
   cast_test(capture cast_media)
+  cast_test(stream cast_media)
+  target_link_libraries(cast_stream_test PRIVATE Qt6::Network)
   set_tests_properties(window accounts PROPERTIES ENVIRONMENT
     "QT_QPA_PLATFORM=offscreen;XDG_CONFIG_HOME=${CMAKE_CURRENT_BINARY_DIR}/test-config")
   set_tests_properties(capture PROPERTIES SKIP_RETURN_CODE 77)

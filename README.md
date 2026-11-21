@@ -17,7 +17,11 @@ YoungLion owner in the system browser and on the desktop.
 - `npm run test:integration` runs integration tests on disposable Postgres and PostgREST.
 - See [setup](docs/setup.md) and the [API](docs/api.md) for Account-web configuration.
 
-The current application delivers capture and scene editing. Live account verification requires a
-deployed staging backend, an Account frontend and registered OAuth apps. Broadcast output is a
-separate delivery, with shared encoding and direct connections described in the
-[transport decision](docs/adr/0001-direct-multistream.md).
+The preview also streams video to multiple local RTMP receivers using one H.264 encoder and
+independent connections. Kick and Twitch publishing will use the same transport model once stream
+keys are integrated. Live account verification requires a deployed backend, an Account frontend and
+registered OAuth apps. See [the transport decision](docs/adr/0001-direct-multistream.md) and
+[release automation](docs/releases.md).
+
+YoungLion Cast is licensed under **GPL-3.0-or-later**. See [COPYING](COPYING) and
+[LICENSE](LICENSE).

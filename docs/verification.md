@@ -60,3 +60,15 @@ full suite verified the fixes; no second independent review is claimed.
   confirmation, and confirmation after browser session revocation.
 - Hardware, Wayland portal, Windows/macOS packages, deployed OAuth and comparative performance still
   need verification in their target environments. The CI matrix defines those platform builds.
+
+## 0.3.0 preview
+
+- Linux Release build and all six CTest suites passed in the Xvfb environment. The local RTMP suite
+  sent one H.264 encoder's video to two real FFmpeg listeners at 1280×720. It terminated one,
+  observed continuing delivery to the other and verified the surviving FLV stream with `ffprobe`.
+- The staged Linux package opened with the RTMP and x264 modules loaded. Its version and archive
+  checksum were verified. `npm run verify` passed 32 unit tests and the two disposable database
+  integration tests passed separately.
+- Release metadata, archive tooling and GitHub Actions syntax were checked locally. The Ubuntu 26.04
+  runner label was checked against the GitHub runner-images list because actionlint's runner table
+  did not include it. Hosted runs and the Windows/macOS packages await a usable repository.

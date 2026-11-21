@@ -9,6 +9,7 @@ namespace Cast {
 class MediaEngine;
 class Preview;
 class Accounts;
+class StreamSession;
 class MainWindow final : public QMainWindow {
     Q_OBJECT
   public:
@@ -45,6 +46,7 @@ class MainWindow final : public QMainWindow {
     QFormLayout *m_form;
     QLabel *m_sourceStatus = nullptr, *m_accountStatus = nullptr;
     Accounts *m_accounts = nullptr;
+    StreamSession *m_stream = nullptr;
     QString m_theme = "system";
     bool m_refreshing = false;
     QByteArray m_defaultLayout;

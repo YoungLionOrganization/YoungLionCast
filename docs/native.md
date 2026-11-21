@@ -38,6 +38,23 @@ composition through Mesa in a virtual X11 session. Sign, package, and exercise t
 physical desktops before shipping. Windows game capture, macOS ScreenCaptureKit, and Wayland portal
 behavior need separate hardware and desktop tests. The build does not ship live outputs.
 
+## Try local RTMP
+
+Start one or more listeners on localhost, then open the **Yerel yayın** tab and enter one URL per
+line. For example, run the following in two terminals with different ports or use two RTMP servers.
+
+```sh
+ffmpeg -listen 1 -i rtmp://127.0.0.1:1935/live/cast -c:v copy -f flv session.flv
+```
+
+Enter `rtmp://127.0.0.1:1935/live/cast` and the other listener's URL. Click **Yerel yayını başlat**.
+Use one to four targets. Every output shares one video-only H.264 encoder and has a separate state,
+retry schedule and packet queue. The demo accepts numeric IPv4 loopback targets and keeps the URLs
+in memory. Kick and Twitch keys and audio will be integrated in a later milestone.
+
+Run `CAST_TEST_RTMP=1` alongside `CAST_TEST_GPU=1` under Xvfb to test two real FFmpeg listeners,
+lose one connection and check the remaining FLV file with `ffprobe`.
+
 ## Connect YoungLion Account
 
 1. Enable the Supabase OAuth 2.1 server. Implement its authorization/consent screen in the YoungLion

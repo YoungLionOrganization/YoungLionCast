@@ -14,6 +14,9 @@ YoungLion Cast's original code is GPL-3.0-or-later. Source distributions include
 - FFmpeg 8.0: LGPL-2.1-or-later with the minimal build in scripts/native-sdk.py;
   enabling optional GPL components changes the applicable distribution obligations.
   https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz
+- x264 (GPL-2.0-or-later) and Mbed TLS 3 (Apache-2.0 OR GPL-2.0-or-later) power the local
+  H.264/RTMP preview through the OBS modules. Linux builds use the corresponding distribution
+  packages. Windows/macOS use [the OBS dependencies](https://github.com/obsproject/obs-deps/tree/2026-10-23).
 - OBS transitive dependencies (FreeType, Fontconfig, Jansson, SIMDe, libcaption,
   PipeWire/Wayland/X11, platform SDKs) retain their upstream licenses. Keep dependency
   license directories when assembling installers. GPU drivers are supplied by the OS/user.
